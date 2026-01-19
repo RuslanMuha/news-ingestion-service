@@ -1,7 +1,6 @@
 package com.tispace.dataingestion.service;
 
 import com.tispace.common.entity.Article;
-import com.tispace.common.repository.ArticleRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -13,10 +12,9 @@ import org.springframework.test.util.ReflectionTestUtils;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.*;
-import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.*;
 
@@ -27,7 +25,7 @@ class DataIngestionServiceTest {
 	private ExternalApiClient externalApiClient;
 	
 	@Mock
-	private ArticleRepository articleRepository;
+	private ArticlePersistenceService articlePersistenceService;
 	
 	@InjectMocks
 	private DataIngestionService dataIngestionService;
@@ -53,28 +51,24 @@ class DataIngestionServiceTest {
 	@Test
 	void testIngestData_Success() {
 		when(externalApiClient.fetchArticles(anyString(), anyString())).thenReturn(mockArticles);
-		when(articleRepository.findByTitle(anyString())).thenReturn(Optional.empty());
-		when(articleRepository.save(any(Article.class))).thenReturn(mockArticles.get(0));
+		when(articlePersistenceService.saveArticles(anyList())).thenReturn(1);
 		
 		assertDoesNotThrow(() -> dataIngestionService.ingestData("technology", "technology"));
 		
 		verify(externalApiClient, times(1)).fetchArticles("technology", "technology");
-		verify(articleRepository, times(1)).findByTitle("Test Article");
-		verify(articleRepository, times(1)).save(any(Article.class));
+		verify(articlePersistenceService, times(1)).saveArticles(anyList());
 	}
 	
 	@Test
 	void testIngestData_WithNullParams_UsesDefaults() {
 		when(externalApiClient.fetchArticles(anyString(), anyString())).thenReturn(mockArticles);
-		when(articleRepository.findByTitle(anyString())).thenReturn(Optional.empty());
-		when(articleRepository.save(any(Article.class))).thenReturn(mockArticles.get(0));
+		when(articlePersistenceService.saveArticles(anyList())).thenReturn(1);
 		
 		assertDoesNotThrow(() -> dataIngestionService.ingestData(null, null));
 		
 		// Should use default values when null is passed
 		verify(externalApiClient, times(1)).fetchArticles("technology", "technology");
-		verify(articleRepository, times(1)).findByTitle("Test Article");
-		verify(articleRepository, times(1)).save(any(Article.class));
+		verify(articlePersistenceService, times(1)).saveArticles(anyList());
 	}
 	
 	@Test
@@ -84,7 +78,7 @@ class DataIngestionServiceTest {
 		assertDoesNotThrow(() -> dataIngestionService.ingestData("technology", "technology"));
 		
 		verify(externalApiClient, times(1)).fetchArticles("technology", "technology");
-		verify(articleRepository, never()).save(any(Article.class));
+		verify(articlePersistenceService, never()).saveArticles(anyList());
 	}
 }
 
