@@ -3,13 +3,13 @@ package com.tispace.dataingestion.client;
 import com.tispace.common.dto.ArticleDTO;
 import com.tispace.common.dto.SummaryDTO;
 import com.tispace.common.exception.ExternalApiException;
+import io.github.resilience4j.bulkhead.annotation.Bulkhead;
 import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
 import io.github.resilience4j.ratelimiter.RequestNotPermitted;
 import io.github.resilience4j.ratelimiter.annotation.RateLimiter;
 import io.github.resilience4j.retry.annotation.Retry;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpMethod;
@@ -17,10 +17,6 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestTemplate;
-
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.Executor;
-import java.util.concurrent.TimeUnit;
 
 @Component
 @RequiredArgsConstructor
@@ -32,37 +28,22 @@ public class QueryServiceClient {
 	
 	private final RestTemplate restTemplate;
 	
-	@Qualifier("queryServiceExecutor")
-	private final Executor queryServiceExecutor;
-	
 	private static final String SUMMARY_ENDPOINT = "/internal/summary";
 	
 	@CircuitBreaker(name = "queryService", fallbackMethod = "getArticleSummaryFallback")
 	@Retry(name = "queryService")
 	@RateLimiter(name = "queryService", fallbackMethod = "getArticleSummaryFallback")
+	@Bulkhead(name = "queryService", type = Bulkhead.Type.THREADPOOL, fallbackMethod = "getArticleSummaryFallback")
 	public SummaryDTO getArticleSummary(Long articleId, ArticleDTO article) {
 		String url = String.format("%s%s/%d", queryServiceUrl, SUMMARY_ENDPOINT, articleId);
 		
 		HttpEntity<ArticleDTO> request = new HttpEntity<>(article);
-
-        ResponseEntity<SummaryDTO> response;
-        // Execute HTTP call in dedicated thread pool (bulkhead isolation)
-        CompletableFuture<ResponseEntity<SummaryDTO>> responseFuture =
-                CompletableFuture.supplyAsync(() ->
-                                restTemplate.exchange(
-                                        url,
-                                        HttpMethod.POST,
-                                        request,
-                                        SummaryDTO.class
-                                ), queryServiceExecutor)
-                        .orTimeout(2, TimeUnit.SECONDS);
-
-        try {
-            response = responseFuture.join();
-        } catch (Exception e) {
-            log.error("Error executing query-service request", e);
-            throw new ExternalApiException("Failed to get summary from query-service", e);
-        }
+		ResponseEntity<SummaryDTO> response = restTemplate.exchange(
+			url,
+			HttpMethod.POST,
+			request,
+			SummaryDTO.class
+		);
 		
 		if (response.getStatusCode() == HttpStatus.OK && response.getBody() != null) {
 			return response.getBody();
@@ -78,7 +59,7 @@ public class QueryServiceClient {
 	}
 	
 	/**
-	 * Fallback method when circuit breaker is open, rate limit exceeded, or service is unavailable.
+	 * Fallback method when circuit breaker is open, bulkhead is full, rate limit exceeded, or service is unavailable.
 	 * This method is invoked by Resilience4j annotations, not directly by code.
 	 */
 	@SuppressWarnings("unused")
@@ -86,6 +67,11 @@ public class QueryServiceClient {
 		if (e instanceof RequestNotPermitted) {
 			log.warn("Rate limit exceeded for query-service. Article id: {}", articleId);
 			throw new ExternalApiException("Rate limit exceeded. Please try again later.", e);
+		}
+		String exceptionType = e != null ? e.getClass().getSimpleName() : "Unknown";
+		if (exceptionType.contains("Bulkhead")) {
+			log.warn("Query-service bulkhead is full (max concurrent calls reached). Article id: {}", articleId);
+			throw new ExternalApiException("Service is currently overloaded. Please try again later.", e);
 		}
 		log.error("Query-service circuit breaker is open or service unavailable. Using fallback for article id: {}", articleId, e);
 		throw new ExternalApiException("Query-service is currently unavailable. Please try again later.", e);
