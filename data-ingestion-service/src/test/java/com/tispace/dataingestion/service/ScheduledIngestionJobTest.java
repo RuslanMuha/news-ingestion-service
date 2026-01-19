@@ -23,6 +23,9 @@ class ScheduledIngestionJobTest {
 	@Mock
 	private ArticleRepository articleRepository;
 	
+	@Mock
+	private DistributedLockService distributedLockService;
+	
 	@InjectMocks
 	private ScheduledIngestionJob scheduledIngestionJob;
 	
@@ -39,11 +42,16 @@ class ScheduledIngestionJobTest {
 	@Test
 	void testOnApplicationReady_EmptyDatabase_RunsIngestion() {
 		when(articleRepository.findTop1ByOrderByCreatedAtDesc()).thenReturn(Optional.empty());
-		doNothing().when(dataIngestionService).ingestData();
+		when(distributedLockService.executeScheduledTaskWithLock(any(Runnable.class))).thenAnswer(invocation -> {
+			Runnable task = invocation.getArgument(0);
+			task.run();
+			return true;
+		});
 		
 		scheduledIngestionJob.onApplicationReady();
 		
 		verify(articleRepository, times(1)).findTop1ByOrderByCreatedAtDesc();
+		verify(distributedLockService, times(1)).executeScheduledTaskWithLock(any(Runnable.class));
 		verify(dataIngestionService, times(1)).ingestData();
 	}
 	
@@ -54,11 +62,16 @@ class ScheduledIngestionJobTest {
 		mockArticle.setCreatedAt(staleTime);
 		
 		when(articleRepository.findTop1ByOrderByCreatedAtDesc()).thenReturn(Optional.of(mockArticle));
-		doNothing().when(dataIngestionService).ingestData();
+		when(distributedLockService.executeScheduledTaskWithLock(any(Runnable.class))).thenAnswer(invocation -> {
+			Runnable task = invocation.getArgument(0);
+			task.run();
+			return true;
+		});
 		
 		scheduledIngestionJob.onApplicationReady();
 		
 		verify(articleRepository, times(1)).findTop1ByOrderByCreatedAtDesc();
+		verify(distributedLockService, times(1)).executeScheduledTaskWithLock(any(Runnable.class));
 		verify(dataIngestionService, times(1)).ingestData();
 	}
 	
@@ -107,31 +120,56 @@ class ScheduledIngestionJobTest {
 	@Test
 	void testOnApplicationReady_IngestionThrowsException_HandlesGracefully() {
 		when(articleRepository.findTop1ByOrderByCreatedAtDesc()).thenReturn(Optional.empty());
+		when(distributedLockService.executeScheduledTaskWithLock(any(Runnable.class))).thenAnswer(invocation -> {
+			Runnable task = invocation.getArgument(0);
+			try {
+				task.run();
+			} catch (RuntimeException e) {
+				// Exception is caught and logged in the actual implementation
+			}
+			return true;
+		});
 		doThrow(new RuntimeException("Ingestion error")).when(dataIngestionService).ingestData();
 		
 		// Should not throw exception
 		scheduledIngestionJob.onApplicationReady();
 		
 		verify(articleRepository, times(1)).findTop1ByOrderByCreatedAtDesc();
+		verify(distributedLockService, times(1)).executeScheduledTaskWithLock(any(Runnable.class));
 		verify(dataIngestionService, times(1)).ingestData();
 	}
 	
 	@Test
 	void testScheduledDataIngestion_Success_RunsIngestion() {
-		doNothing().when(dataIngestionService).ingestData();
+		when(distributedLockService.executeScheduledTaskWithLock(any(Runnable.class))).thenAnswer(invocation -> {
+			Runnable task = invocation.getArgument(0);
+			task.run();
+			return true;
+		});
 		
 		scheduledIngestionJob.scheduledDataIngestion();
 		
+		verify(distributedLockService, times(1)).executeScheduledTaskWithLock(any(Runnable.class));
 		verify(dataIngestionService, times(1)).ingestData();
 	}
 	
 	@Test
 	void testScheduledDataIngestion_ThrowsException_HandlesGracefully() {
+		when(distributedLockService.executeScheduledTaskWithLock(any(Runnable.class))).thenAnswer(invocation -> {
+			Runnable task = invocation.getArgument(0);
+			try {
+				task.run();
+			} catch (RuntimeException e) {
+				// Exception is caught and logged in the actual implementation
+			}
+			return true;
+		});
 		doThrow(new RuntimeException("Ingestion error")).when(dataIngestionService).ingestData();
 		
 		// Should not throw exception
 		scheduledIngestionJob.scheduledDataIngestion();
 		
+		verify(distributedLockService, times(1)).executeScheduledTaskWithLock(any(Runnable.class));
 		verify(dataIngestionService, times(1)).ingestData();
 	}
 	
@@ -142,11 +180,16 @@ class ScheduledIngestionJobTest {
 		mockArticle.setCreatedAt(veryStaleTime);
 		
 		when(articleRepository.findTop1ByOrderByCreatedAtDesc()).thenReturn(Optional.of(mockArticle));
-		doNothing().when(dataIngestionService).ingestData();
+		when(distributedLockService.executeScheduledTaskWithLock(any(Runnable.class))).thenAnswer(invocation -> {
+			Runnable task = invocation.getArgument(0);
+			task.run();
+			return true;
+		});
 		
 		scheduledIngestionJob.onApplicationReady();
 		
 		verify(articleRepository, times(1)).findTop1ByOrderByCreatedAtDesc();
+		verify(distributedLockService, times(1)).executeScheduledTaskWithLock(any(Runnable.class));
 		verify(dataIngestionService, times(1)).ingestData();
 	}
 	
@@ -160,6 +203,17 @@ class ScheduledIngestionJobTest {
 		scheduledIngestionJob.onApplicationReady();
 		
 		verify(articleRepository, times(1)).findTop1ByOrderByCreatedAtDesc();
+		verify(dataIngestionService, never()).ingestData();
+	}
+	
+	@Test
+	void testScheduledDataIngestion_LockNotAcquired_SkipsIngestion() {
+		// Lock cannot be acquired (another instance is running)
+		when(distributedLockService.executeScheduledTaskWithLock(any(Runnable.class))).thenReturn(false);
+		
+		scheduledIngestionJob.scheduledDataIngestion();
+		
+		verify(distributedLockService, times(1)).executeScheduledTaskWithLock(any(Runnable.class));
 		verify(dataIngestionService, never()).ingestData();
 	}
 }

@@ -435,16 +435,16 @@ class NewsApiClientTest {
 	}
 	
 	@Test
-	void testFetchArticlesFallback_ThrowsExternalApiException() {
+	void testFetchArticlesFallback_ReturnsEmptyList() {
 		String keyword = "technology";
 		String category = "technology";
 		Exception cause = new RuntimeException("Service unavailable");
 		
-		ExternalApiException exception = assertThrows(ExternalApiException.class, 
-			() -> newsApiClient.fetchArticlesFallback(keyword, category, cause));
+		// Fallback now returns empty list instead of throwing exception
+		List<Article> result = newsApiClient.fetchArticlesFallback(keyword, category, cause);
 		
-		assertTrue(exception.getMessage().contains("unavailable"));
-		assertEquals(cause, exception.getCause());
+		assertNotNull(result);
+		assertTrue(result.isEmpty());
 	}
 	
 	private String createMockJsonResponse() {

@@ -57,8 +57,10 @@ public class QueryServiceClient {
 	}
 	
 	/**
-	 * Fallback method when circuit breaker is open, rate limit exceeded, or service is unavailable
+	 * Fallback method when circuit breaker is open, rate limit exceeded, or service is unavailable.
+	 * This method is invoked by Resilience4j annotations, not directly by code.
 	 */
+	@SuppressWarnings("unused")
 	private SummaryDTO getArticleSummaryFallback(Long articleId, ArticleDTO article, Exception e) {
 		if (e instanceof RequestNotPermitted) {
 			log.warn("Rate limit exceeded for query-service. Article id: {}", articleId);

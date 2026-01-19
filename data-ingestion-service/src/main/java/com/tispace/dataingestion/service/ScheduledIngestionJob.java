@@ -22,6 +22,7 @@ public class ScheduledIngestionJob {
 	
 	private final DataIngestionService dataIngestionService;
 	private final ArticleRepository articleRepository;
+	private final DistributedLockService distributedLockService;
 	
 	private static final Duration DATA_STALENESS_THRESHOLD = Duration.ofHours(24);
 	
@@ -56,12 +57,21 @@ public class ScheduledIngestionJob {
 	
 	@Scheduled(cron = "${scheduler.cron:0 0 */6 * * *}", zone = "UTC")
 	public void scheduledDataIngestion() {
-		log.info("Starting scheduled data ingestion job");
-		try {
-			dataIngestionService.ingestData();
-			log.info("Scheduled data ingestion job completed successfully");
-		} catch (Exception e) {
-			log.error("Scheduled data ingestion job failed", e);
+		log.info("Attempting to acquire distributed lock for scheduled data ingestion job");
+		
+		boolean executed = distributedLockService.executeScheduledTaskWithLock(() -> {
+			log.info("Distributed lock acquired, starting scheduled data ingestion job");
+			try {
+				dataIngestionService.ingestData();
+				log.info("Scheduled data ingestion job completed successfully");
+			} catch (Exception e) {
+				log.error("Scheduled data ingestion job failed", e);
+				throw new RuntimeException("Data ingestion failed", e);
+			}
+		});
+		
+		if (!executed) {
+			log.info("Scheduled data ingestion job skipped - another instance is already running");
 		}
 	}
 }

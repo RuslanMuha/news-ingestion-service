@@ -7,8 +7,8 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
+import java.util.ArrayList;
 import java.util.List;
-import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -39,11 +39,18 @@ public class DataIngestionService {
 			return;
 		}
 
-		List<Article> validArticles = articles.stream()
-				.filter(article -> article != null && StringUtils.isNotEmpty(article.getTitle()))
-				.collect(Collectors.toList());
+		// Filter valid articles in single pass to avoid double iteration
+		List<Article> validArticles = new ArrayList<>(articles.size());
+		int skippedCount = 0;
 		
-		int skippedCount = articles.size() - validArticles.size();
+		for (Article article : articles) {
+			if (article != null && StringUtils.isNotEmpty(article.getTitle())) {
+				validArticles.add(article);
+			} else {
+				skippedCount++;
+			}
+		}
+		
 		if (skippedCount > 0) {
 			log.warn("Skipped {} articles due to missing or invalid title", skippedCount);
 		}

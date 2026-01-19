@@ -44,7 +44,7 @@ public class NewsApiClient implements ExternalApiClient {
 		log.info("Fetching articles from NewsAPI with keyword: {}, category: {}", keyword, category);
 		
 		String url = buildUrl(keyword, category);
-		log.debug("NewsAPI URL: {}", url);
+		log.debug("NewsAPI URL: {}", maskApiKey(url));
 		
 		ResponseEntity<String> response = restTemplate.getForEntity(url, String.class);
 		
@@ -90,23 +90,39 @@ public class NewsApiClient implements ExternalApiClient {
 		return builder.toUriString();
 	}
 	
-	private List<Article> mapToArticles(NewsApiAdapter adapter, String category) {
-		List<Article> articles = new ArrayList<>();
-		
-		if (adapter == null || adapter.getArticles() == null || adapter.getArticles().isEmpty()) {
-			return articles;
+	/**
+	 * Masks API key in URL for logging purposes.
+	 * Replaces apiKey value with "***" to prevent exposure in logs.
+	 */
+	private String maskApiKey(String url) {
+		if (url == null || apiKey == null || apiKey.isEmpty()) {
+			return url;
 		}
+		// Replace API key parameter value with masked version
+		return url.replace("apiKey=" + apiKey, "apiKey=***");
+	}
+	
+	private List<Article> mapToArticles(NewsApiAdapter adapter, String category) {
+		if (adapter == null || adapter.getArticles() == null || adapter.getArticles().isEmpty()) {
+			return new ArrayList<>();
+		}
+		
+		List<Article> articles = new ArrayList<>(adapter.getArticles().size());
+		int skippedNull = 0;
+		int skippedMapping = 0;
+		int skippedEmptyTitle = 0;
+		int mappingErrors = 0;
 		
 		for (NewsApiAdapter.ArticleResponse articleResponse : adapter.getArticles()) {
 			try {
 				if (articleResponse == null) {
-					log.debug("Skipping null article response");
+					skippedNull++;
 					continue;
 				}
 				
 				Article article = newsApiArticleMapper.toArticle(articleResponse);
 				if (article == null) {
-					log.debug("Skipping article that failed to map");
+					skippedMapping++;
 					continue;
 				}
 				
@@ -116,23 +132,35 @@ public class NewsApiClient implements ExternalApiClient {
 				if (StringUtils.isNotEmpty(article.getTitle())) {
 					articles.add(article);
 				} else {
-					log.debug("Skipping article with empty or null title");
+					skippedEmptyTitle++;
 				}
 			} catch (Exception e) {
-				log.warn("Error mapping article response to Article entity, skipping: {}", e.getMessage());
+				mappingErrors++;
 				// Continue processing other articles even if one fails
+				// Log only first few errors to avoid log spam
+				if (mappingErrors <= 3) {
+					log.warn("Error mapping article response to Article entity, skipping: {}", e.getMessage());
+				}
 			}
+		}
+		
+		// Log aggregated statistics once after processing
+		if (skippedNull > 0 || skippedMapping > 0 || skippedEmptyTitle > 0 || mappingErrors > 0) {
+			log.debug("Article mapping statistics: {} mapped, {} skipped (null: {}, mapping_failed: {}, empty_title: {}, errors: {})",
+				articles.size(), skippedNull + skippedMapping + skippedEmptyTitle + mappingErrors,
+				skippedNull, skippedMapping, skippedEmptyTitle, mappingErrors);
 		}
 		
 		return articles;
 	}
 	
 	/**
-	 * Fallback method when NewsAPI circuit breaker is open or service is unavailable
+	 * Fallback method when NewsAPI circuit breaker is open or service is unavailable.
+	 * Returns empty list instead of throwing exception to allow graceful degradation.
 	 */
 	public List<Article> fetchArticlesFallback(String keyword, String category, Exception e) {
-		log.error("NewsAPI circuit breaker is open or service unavailable. Using fallback for keyword: {}, category: {}", keyword, category, e);
-		throw new ExternalApiException("NewsAPI is currently unavailable. Please try again later.", e);
+		log.error("NewsAPI circuit breaker is open or service unavailable. Using fallback for keyword: {}, category: {}. Returning empty list.", keyword, category, e);
+		return new ArrayList<>();
 	}
 	
 	@Override
