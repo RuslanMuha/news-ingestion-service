@@ -4,6 +4,8 @@ import com.tispace.common.dto.ArticleDTO;
 import com.tispace.common.dto.SummaryDTO;
 import com.tispace.common.exception.ExternalApiException;
 import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
+import io.github.resilience4j.ratelimiter.RequestNotPermitted;
+import io.github.resilience4j.ratelimiter.annotation.RateLimiter;
 import io.github.resilience4j.retry.annotation.Retry;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -30,6 +32,7 @@ public class QueryServiceClient {
 	
 	@CircuitBreaker(name = "queryService", fallbackMethod = "getArticleSummaryFallback")
 	@Retry(name = "queryService")
+	@RateLimiter(name = "queryService", fallbackMethod = "getArticleSummaryFallback")
 	public SummaryDTO getArticleSummary(Long articleId, ArticleDTO article) {
 		try {
 			String url = String.format("%s%s/%d", queryServiceUrl, SUMMARY_ENDPOINT, articleId);
@@ -70,9 +73,13 @@ public class QueryServiceClient {
 	}
 	
 	/**
-	 * Fallback method when circuit breaker is open or service is unavailable
+	 * Fallback method when circuit breaker is open, rate limit exceeded, or service is unavailable
 	 */
 	private SummaryDTO getArticleSummaryFallback(Long articleId, ArticleDTO article, Exception e) {
+		if (e instanceof RequestNotPermitted) {
+			log.warn("Rate limit exceeded for query-service. Article id: {}", articleId);
+			throw new ExternalApiException("Rate limit exceeded. Please try again later.", e);
+		}
 		log.error("Query-service circuit breaker is open or service unavailable. Using fallback for article id: {}", articleId, e);
 		throw new ExternalApiException("Query-service is currently unavailable. Please try again later.", e);
 	}

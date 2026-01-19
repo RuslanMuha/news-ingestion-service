@@ -104,6 +104,12 @@ resilience4j:
           - org.springframework.web.client.ResourceAccessException
           - java.net.ConnectException
           - java.net.SocketTimeoutException
+  ratelimiter:
+    instances:
+      queryService:
+        limitForPeriod: ${RATE_LIMITER_LIMIT:10}
+        limitRefreshPeriod: ${RATE_LIMITER_PERIOD:1s}
+        timeoutDuration: ${RATE_LIMITER_TIMEOUT:5s}
 
 logging:
   level:

@@ -23,19 +23,14 @@ public class DataIngestionService {
 	
 	@Value("${scheduler.category:technology}")
 	private String defaultCategory;
-	
-	/**
-	 * Main method for data ingestion - NO transaction here to avoid long-running transactions
-	 * during external API calls.
-	 */
+
 	public void ingestData(String keyword, String category) {
 		try {
 			log.info("Starting data ingestion with keyword: {}, category: {}", keyword, category);
 			
 			String searchKeyword = StringUtils.isNotEmpty(keyword) ? keyword : defaultKeyword;
 			String searchCategory = StringUtils.isNotEmpty(category) ? category : defaultCategory;
-			
-			// Step 1: Fetch data from external API (OUTSIDE transaction)
+
 			List<Article> articles = externalApiClient.fetchArticles(searchKeyword, searchCategory);
 			
 			log.info("Fetched {} articles from {}", articles.size(), externalApiClient.getApiName());
@@ -44,8 +39,7 @@ public class DataIngestionService {
 				log.warn("No articles fetched from {}", externalApiClient.getApiName());
 				return;
 			}
-			
-			// Step 2: Filter valid articles (OUTSIDE transaction)
+
 			List<Article> validArticles = articles.stream()
 					.filter(article -> article != null && StringUtils.isNotEmpty(article.getTitle()))
 					.collect(Collectors.toList());
