@@ -14,7 +14,6 @@ public final class NewsApiConstants {
 	// URL query parameters
 	public static final String PARAM_API_KEY = "apiKey";
 	public static final String PARAM_QUERY = "q";
-	public static final String PARAM_CATEGORY = "category";
 	public static final String PARAM_PAGE_SIZE = "pageSize";
 	public static final String PARAM_SORT_BY = "sortBy";
 }

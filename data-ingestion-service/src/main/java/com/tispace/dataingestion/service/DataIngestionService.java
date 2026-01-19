@@ -25,44 +25,38 @@ public class DataIngestionService {
 	private String defaultCategory;
 
 	public void ingestData(String keyword, String category) {
-		try {
-			log.info("Starting data ingestion with keyword: {}, category: {}", keyword, category);
-			
-			String searchKeyword = StringUtils.isNotEmpty(keyword) ? keyword : defaultKeyword;
-			String searchCategory = StringUtils.isNotEmpty(category) ? category : defaultCategory;
+		log.info("Starting data ingestion with keyword: {}, category: {}", keyword, category);
+		
+		String searchKeyword = StringUtils.isNotEmpty(keyword) ? keyword : defaultKeyword;
+		String searchCategory = StringUtils.isNotEmpty(category) ? category : defaultCategory;
 
-			List<Article> articles = externalApiClient.fetchArticles(searchKeyword, searchCategory);
-			
-			log.info("Fetched {} articles from {}", articles.size(), externalApiClient.getApiName());
-			
-			if (articles.isEmpty()) {
-				log.warn("No articles fetched from {}", externalApiClient.getApiName());
-				return;
-			}
-
-			List<Article> validArticles = articles.stream()
-					.filter(article -> article != null && StringUtils.isNotEmpty(article.getTitle()))
-					.collect(Collectors.toList());
-			
-			int skippedCount = articles.size() - validArticles.size();
-			if (skippedCount > 0) {
-				log.warn("Skipped {} articles due to missing or invalid title", skippedCount);
-			}
-			
-			if (validArticles.isEmpty()) {
-				log.warn("No valid articles to save");
-				return;
-			}
-
-			int savedCount = articlePersistenceService.saveArticles(validArticles);
-			
-			log.info("Successfully saved {} new articles to database ({} skipped due to duplicates)", 
-					savedCount, validArticles.size() - savedCount);
-			
-		} catch (Exception e) {
-			log.error("Error during data ingestion", e);
-			throw e;
+		List<Article> articles = externalApiClient.fetchArticles(searchKeyword, searchCategory);
+		
+		log.info("Fetched {} articles from {}", articles.size(), externalApiClient.getApiName());
+		
+		if (articles.isEmpty()) {
+			log.warn("No articles fetched from {}", externalApiClient.getApiName());
+			return;
 		}
+
+		List<Article> validArticles = articles.stream()
+				.filter(article -> article != null && StringUtils.isNotEmpty(article.getTitle()))
+				.collect(Collectors.toList());
+		
+		int skippedCount = articles.size() - validArticles.size();
+		if (skippedCount > 0) {
+			log.warn("Skipped {} articles due to missing or invalid title", skippedCount);
+		}
+		
+		if (validArticles.isEmpty()) {
+			log.warn("No valid articles to save");
+			return;
+		}
+
+		int savedCount = articlePersistenceService.saveArticles(validArticles);
+		
+		log.info("Successfully saved {} new articles to database ({} skipped due to duplicates)", 
+				savedCount, validArticles.size() - savedCount);
 	}
 
 	public void ingestData() {

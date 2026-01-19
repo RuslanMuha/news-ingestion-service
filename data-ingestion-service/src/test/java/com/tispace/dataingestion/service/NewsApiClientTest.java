@@ -17,7 +17,6 @@ import org.springframework.test.util.ReflectionTestUtils;
 import org.springframework.web.client.RestTemplate;
 
 import java.time.LocalDateTime;
-import java.time.ZonedDateTime;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -105,14 +104,16 @@ class NewsApiClientTest {
 	}
 	
 	@Test
-	void testFetchArticles_Exception_ThrowsExternalApiException() {
+	void testFetchArticles_Exception_ThrowsException() {
 		String keyword = "technology";
 		String category = "technology";
 		
 		when(restTemplate.getForEntity(anyString(), eq(String.class)))
 			.thenThrow(new RuntimeException("Connection error"));
 		
-		assertThrows(ExternalApiException.class, () -> newsApiClient.fetchArticles(keyword, category));
+		// After refactoring, exceptions are not wrapped in ExternalApiException
+		// They are propagated as-is and handled by GlobalExceptionHandler
+		assertThrows(RuntimeException.class, () -> newsApiClient.fetchArticles(keyword, category));
 	}
 	
 	@Test
@@ -210,13 +211,12 @@ class NewsApiClientTest {
 	}
 	
 	private String createMockJsonResponse() {
-		return "{\"status\":\"ok\",\"totalResults\":1,\"articles\":[{\"title\":\"Test Article\",\"description\":\"Test Description\",\"author\":\"Test Author\",\"publishedAt\":\"2025-01-18T10:00:00Z\"}]}";
+		return "{\"status\":\"ok\",\"articles\":[{\"title\":\"Test Article\",\"description\":\"Test Description\",\"author\":\"Test Author\",\"publishedAt\":\"2025-01-18T10:00:00Z\"}]}";
 	}
 	
 	private NewsApiAdapter createMockAdapter() {
 		NewsApiAdapter adapter = new NewsApiAdapter();
 		adapter.setStatus("ok");
-		adapter.setTotalResults(1);
 		
 		NewsApiAdapter.ArticleResponse articleResponse = new NewsApiAdapter.ArticleResponse();
 		articleResponse.setTitle("Test Article");

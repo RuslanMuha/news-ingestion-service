@@ -8,7 +8,5 @@ import org.mapstruct.Mapper;
 public interface ArticleMapper {
 	
 	ArticleDTO toDTO(Article article);
-	
-	Article toEntity(ArticleDTO dto);
 }
 

@@ -1,8 +1,10 @@
 package com.tispace.dataingestion.service;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.tispace.common.entity.Article;
 import com.tispace.common.exception.ExternalApiException;
+import com.tispace.common.exception.SerializationException;
 import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
 import io.github.resilience4j.retry.annotation.Retry;
 import org.apache.commons.lang3.StringUtils;
@@ -39,53 +41,36 @@ public class NewsApiClient implements ExternalApiClient {
 	@CircuitBreaker(name = "newsApi", fallbackMethod = "fetchArticlesFallback")
 	@Retry(name = "newsApi")
 	public List<Article> fetchArticles(String keyword, String category) {
-		try {
-			log.info("Fetching articles from NewsAPI with keyword: {}, category: {}", keyword, category);
-			
-			String url = buildUrl(keyword, category);
-			log.debug("NewsAPI URL: {}", url);
-			
-			ResponseEntity<String> response = restTemplate.getForEntity(url, String.class);
-			
-			if (!response.getStatusCode().is2xxSuccessful()) {
-				throw new ExternalApiException(String.format("NewsAPI returned status: %s", response.getStatusCode()));
-			}
-			
-			String responseBody = response.getBody();
-			if (StringUtils.isEmpty(responseBody)) {
-				log.warn("NewsAPI returned empty response body");
-				return new ArrayList<>();
-			}
-			
-			NewsApiAdapter adapter;
-			try {
-				adapter = objectMapper.readValue(responseBody, NewsApiAdapter.class);
-			} catch (com.fasterxml.jackson.core.JsonProcessingException e) {
-				log.error("Failed to parse NewsAPI response as JSON", e);
-				throw new ExternalApiException(String.format("Failed to parse NewsAPI response: %s", e.getMessage()), e);
-			}
-			
-			if (!NewsApiConstants.STATUS_OK.equalsIgnoreCase(adapter.getStatus())) {
-				throw new ExternalApiException(String.format("NewsAPI returned status: %s", adapter.getStatus()));
-			}
-			
-			return mapToArticles(adapter, category);
-			
-		} catch (org.springframework.web.client.HttpClientErrorException.Unauthorized e) {
-			log.error("NewsAPI authentication failed - check API key");
-			throw new ExternalApiException("NewsAPI authentication failed. Please check your API key.", e);
-		} catch (org.springframework.web.client.HttpClientErrorException.TooManyRequests e) {
-			log.error("NewsAPI rate limit exceeded");
-			throw new ExternalApiException("NewsAPI rate limit exceeded. Please try again later.", e);
-		} catch (org.springframework.web.client.ResourceAccessException e) {
-			log.error("NewsAPI connection timeout or network error", e);
-			throw new ExternalApiException(String.format("Failed to connect to NewsAPI: %s", e.getMessage()), e);
-		} catch (ExternalApiException e) {
-			throw e;
-		} catch (Exception e) {
-			log.error("Error fetching articles from NewsAPI", e);
-			throw new ExternalApiException(String.format("Failed to fetch articles from NewsAPI: %s", e.getMessage()), e);
+		log.info("Fetching articles from NewsAPI with keyword: {}, category: {}", keyword, category);
+		
+		String url = buildUrl(keyword, category);
+		log.debug("NewsAPI URL: {}", url);
+		
+		ResponseEntity<String> response = restTemplate.getForEntity(url, String.class);
+		
+		if (!response.getStatusCode().is2xxSuccessful()) {
+			throw new ExternalApiException(String.format("NewsAPI returned status: %s", response.getStatusCode()));
 		}
+		
+		String responseBody = response.getBody();
+		if (StringUtils.isEmpty(responseBody)) {
+			log.warn("NewsAPI returned empty response body");
+			return new ArrayList<>();
+		}
+		
+		NewsApiAdapter adapter;
+		try {
+			adapter = objectMapper.readValue(responseBody, NewsApiAdapter.class);
+		} catch (JsonProcessingException e) {
+			log.error("Failed to parse NewsAPI response as JSON", e);
+			throw new SerializationException("Failed to parse NewsAPI response", e);
+		}
+		
+		if (!NewsApiConstants.STATUS_OK.equalsIgnoreCase(adapter.getStatus())) {
+			throw new ExternalApiException(String.format("NewsAPI returned status: %s", adapter.getStatus()));
+		}
+		
+		return mapToArticles(adapter, category);
 	}
 	
 	private String buildUrl(String keyword, String category) {

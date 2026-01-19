@@ -13,23 +13,17 @@ import java.util.List;
 public class NewsApiAdapter {
 	
 	private String status;
-	private Integer totalResults;
 	private List<ArticleResponse> articles;
 	
 	@Data
 	@JsonIgnoreProperties(ignoreUnknown = true)
 	public static class ArticleResponse {
-		private Source source;
 		private String author;
 		private String title;
 		private String description;
 		
 		@JsonProperty("publishedAt")
 		private String publishedAt;
-		
-		private String url;
-		private String urlToImage;
-		private String content;
 		
 		public LocalDateTime getPublishedAtLocalDateTime() {
 			if (publishedAt == null || publishedAt.isEmpty()) {
@@ -41,13 +35,6 @@ public class NewsApiAdapter {
 				return null;
 			}
 		}
-	}
-	
-	@Data
-	@JsonIgnoreProperties(ignoreUnknown = true)
-	public static class Source {
-		private String id;
-		private String name;
 	}
 }
 

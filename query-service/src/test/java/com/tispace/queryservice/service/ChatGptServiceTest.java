@@ -5,7 +5,6 @@ import com.theokanning.openai.completion.chat.ChatCompletionResult;
 import com.theokanning.openai.completion.chat.ChatMessage;
 import com.theokanning.openai.service.OpenAiService;
 import com.tispace.common.dto.ArticleDTO;
-import com.tispace.common.exception.ExternalApiException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -83,11 +82,13 @@ class ChatGptServiceTest {
 	}
 	
 	@Test
-	void testGenerateSummary_Exception_ThrowsExternalApiException() {
+	void testGenerateSummary_Exception_ThrowsException() {
 		when(openAiService.createChatCompletion(any(ChatCompletionRequest.class)))
 			.thenThrow(new RuntimeException("OpenAI API error"));
 		
-		assertThrows(ExternalApiException.class, () -> chatGptService.generateSummary(mockArticleDTO));
+		// After refactoring, exceptions are not wrapped in ExternalApiException
+		// They are propagated as-is and handled by GlobalExceptionHandler
+		assertThrows(RuntimeException.class, () -> chatGptService.generateSummary(mockArticleDTO));
 		
 		verify(openAiService, times(1)).createChatCompletion(any(ChatCompletionRequest.class));
 	}

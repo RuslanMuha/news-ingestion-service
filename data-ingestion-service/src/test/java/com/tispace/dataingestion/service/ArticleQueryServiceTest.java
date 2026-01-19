@@ -99,9 +99,6 @@ class ArticleQueryServiceTest {
 	void testGetArticlesDTO_WithCategory_ReturnsFilteredDTOs() {
 		Pageable pageable = PageRequest.of(0, 20);
 		Page<Article> articlePage = new PageImpl<>(mockArticles, pageable, 1);
-		List<ArticleDTO> articleDTOs = new ArrayList<>();
-		articleDTOs.add(mockArticleDTO);
-		Page<ArticleDTO> dtoPage = new PageImpl<>(articleDTOs, pageable, 1);
 		
 		when(articleRepository.findByCategory(anyString(), any(Pageable.class))).thenReturn(articlePage);
 		when(articleMapper.toDTO(any(Article.class))).thenReturn(mockArticleDTO);

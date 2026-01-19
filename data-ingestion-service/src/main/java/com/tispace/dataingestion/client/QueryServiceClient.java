@@ -15,7 +15,6 @@ import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Component;
-import org.springframework.web.client.HttpClientErrorException;
 import org.springframework.web.client.RestTemplate;
 
 @Component
@@ -34,42 +33,27 @@ public class QueryServiceClient {
 	@Retry(name = "queryService")
 	@RateLimiter(name = "queryService", fallbackMethod = "getArticleSummaryFallback")
 	public SummaryDTO getArticleSummary(Long articleId, ArticleDTO article) {
-		try {
-			String url = String.format("%s%s/%d", queryServiceUrl, SUMMARY_ENDPOINT, articleId);
-			
-			HttpEntity<ArticleDTO> request = new HttpEntity<>(article);
-			ResponseEntity<SummaryDTO> response = restTemplate.exchange(
-				url,
-				HttpMethod.POST,
-				request,
-				SummaryDTO.class
-			);
-			
-			if (response.getStatusCode() == HttpStatus.OK && response.getBody() != null) {
-				return response.getBody();
-			}
-			
-			if (response.getBody() == null) {
-				log.warn("Query-service returned null response body with status: {}", response.getStatusCode());
-				throw new ExternalApiException("Query-service returned empty response");
-			}
-			
-			log.warn("Unexpected response from query-service: {}", response.getStatusCode());
-			throw new ExternalApiException(String.format("Failed to get summary from query-service: status %s", response.getStatusCode()));
-			
-		} catch (org.springframework.web.client.HttpClientErrorException.NotFound e) {
-			log.error("Article not found in query-service: {}", e.getMessage());
-			throw new ExternalApiException("Article not found", e);
-		} catch (org.springframework.web.client.ResourceAccessException e) {
-			log.error("Query-service connection timeout or unavailable: {}", e.getMessage());
-			throw new ExternalApiException("Query-service is unavailable. Please try again later.", e);
-		} catch (HttpClientErrorException e) {
-			log.error("Error calling query-service for summary: {}", e.getMessage());
-			throw new ExternalApiException(String.format("Query service error: %s", e.getMessage()), e);
-		} catch (Exception e) {
-			log.error("Unexpected error calling query-service", e);
-			throw new ExternalApiException(String.format("Failed to get summary: %s", e.getMessage()), e);
+		String url = String.format("%s%s/%d", queryServiceUrl, SUMMARY_ENDPOINT, articleId);
+		
+		HttpEntity<ArticleDTO> request = new HttpEntity<>(article);
+		ResponseEntity<SummaryDTO> response = restTemplate.exchange(
+			url,
+			HttpMethod.POST,
+			request,
+			SummaryDTO.class
+		);
+		
+		if (response.getStatusCode() == HttpStatus.OK && response.getBody() != null) {
+			return response.getBody();
 		}
+		
+		if (response.getBody() == null) {
+			log.warn("Query-service returned null response body with status: {}", response.getStatusCode());
+			throw new ExternalApiException("Query-service returned empty response");
+		}
+		
+		log.warn("Unexpected response from query-service: {}", response.getStatusCode());
+		throw new ExternalApiException(String.format("Failed to get summary from query-service: status %s", response.getStatusCode()));
 	}
 	
 	/**

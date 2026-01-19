@@ -30,14 +30,14 @@ public class CacheService {
 			}
 			return objectMapper.readValue(value, type);
 		} catch (org.springframework.data.redis.RedisConnectionFailureException e) {
-			log.warn("Redis connection failure while getting key: {}. Returning null (cache miss)", key, e);
-			return null; // Treat as cache miss when Redis is unavailable
+			log.warn("Redis connection failure while getting key: {}. Returning null (cache miss)", key);
+			return null; // Treat as cache miss when Redis is unavailable - cache is optional
 		} catch (JsonProcessingException e) {
-			log.error("Error deserializing cached value for key: {}", key, e);
-			return null;
+			log.warn("Error deserializing cached value for key: {}. Returning null (cache miss)", key);
+			return null; // Treat serialization errors as cache miss - cache is optional
 		} catch (Exception e) {
-			log.error("Unexpected error getting cached value for key: {}", key, e);
-			return null;
+			log.warn("Unexpected error getting cached value for key: {}. Returning null (cache miss)", key);
+			return null; // Treat all errors as cache miss - cache is optional
 		}
 	}
 	
@@ -62,12 +62,14 @@ public class CacheService {
 			redisTemplate.opsForValue().set(key, jsonValue, ttlSeconds, TimeUnit.SECONDS);
 			log.debug("Cached value for key: {} with TTL: {} seconds", key, ttlSeconds);
 		} catch (org.springframework.data.redis.RedisConnectionFailureException e) {
-			log.warn("Redis connection failure while putting key: {}. Cache operation failed silently.", key, e);
+			log.warn("Redis connection failure while putting key: {}. Cache operation failed silently.", key);
 			// Fail silently - cache is optional, service should continue working
 		} catch (JsonProcessingException e) {
-			log.error("Error serializing value for cache key: {}", key, e);
+			log.warn("Error serializing value for cache key: {}. Cache operation failed silently.", key);
+			// Fail silently - cache is optional, service should continue working
 		} catch (Exception e) {
-			log.error("Unexpected error putting cached value for key: {}", key, e);
+			log.warn("Unexpected error putting cached value for key: {}. Cache operation failed silently.", key);
+			// Fail silently - cache is optional, service should continue working
 		}
 	}
 	
@@ -80,9 +82,11 @@ public class CacheService {
 		try {
 			redisTemplate.delete(key);
 		} catch (org.springframework.data.redis.RedisConnectionFailureException e) {
-			log.warn("Redis connection failure while deleting key: {}. Operation failed silently.", key, e);
+			log.warn("Redis connection failure while deleting key: {}. Operation failed silently.", key);
+			// Fail silently - cache is optional, service should continue working
 		} catch (Exception e) {
-			log.error("Unexpected error deleting cached value for key: {}", key, e);
+			log.warn("Unexpected error deleting cached value for key: {}. Operation failed silently.", key);
+			// Fail silently - cache is optional, service should continue working
 		}
 	}
 }
