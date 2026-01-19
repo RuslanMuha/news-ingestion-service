@@ -9,11 +9,23 @@ import lombok.NoArgsConstructor;
 public final class PromptBuilder {
 	
 	public static String buildSummaryPrompt(ArticleDTO article) {
+		if (article == null) {
+			throw new IllegalArgumentException("Article cannot be null");
+		}
+		
 		StringBuilder prompt = new StringBuilder();
 		prompt.append(ChatGptConstants.PROMPT_PREFIX);
-		prompt.append(ChatGptConstants.PROMPT_TITLE_PREFIX)
-			.append(article.getTitle())
-			.append("\n\n");
+		
+		String title = article.getTitle();
+		if (StringUtils.isNotEmpty(title)) {
+			prompt.append(ChatGptConstants.PROMPT_TITLE_PREFIX)
+				.append(title)
+				.append("\n\n");
+		} else {
+			prompt.append(ChatGptConstants.PROMPT_TITLE_PREFIX)
+				.append("(No title available)")
+				.append("\n\n");
+		}
 		
 		if (StringUtils.isNotEmpty(article.getDescription())) {
 			prompt.append(ChatGptConstants.PROMPT_DESCRIPTION_PREFIX)

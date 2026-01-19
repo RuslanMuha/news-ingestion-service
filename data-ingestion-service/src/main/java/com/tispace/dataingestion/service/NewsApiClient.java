@@ -3,6 +3,8 @@ package com.tispace.dataingestion.service;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.tispace.common.entity.Article;
 import com.tispace.common.exception.ExternalApiException;
+import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
+import io.github.resilience4j.retry.annotation.Retry;
 import org.apache.commons.lang3.StringUtils;
 import com.tispace.dataingestion.adapter.NewsApiAdapter;
 import com.tispace.dataingestion.constants.NewsApiConstants;
@@ -34,6 +36,8 @@ public class NewsApiClient implements ExternalApiClient {
 	private String apiKey;
 	
 	@Override
+	@CircuitBreaker(name = "newsApi", fallbackMethod = "fetchArticlesFallback")
+	@Retry(name = "newsApi")
 	public List<Article> fetchArticles(String keyword, String category) {
 		try {
 			log.info("Fetching articles from NewsAPI with keyword: {}, category: {}", keyword, category);
@@ -47,7 +51,19 @@ public class NewsApiClient implements ExternalApiClient {
 				throw new ExternalApiException(String.format("NewsAPI returned status: %s", response.getStatusCode()));
 			}
 			
-			NewsApiAdapter adapter = objectMapper.readValue(response.getBody(), NewsApiAdapter.class);
+			String responseBody = response.getBody();
+			if (StringUtils.isEmpty(responseBody)) {
+				log.warn("NewsAPI returned empty response body");
+				return new ArrayList<>();
+			}
+			
+			NewsApiAdapter adapter;
+			try {
+				adapter = objectMapper.readValue(responseBody, NewsApiAdapter.class);
+			} catch (com.fasterxml.jackson.core.JsonProcessingException e) {
+				log.error("Failed to parse NewsAPI response as JSON", e);
+				throw new ExternalApiException(String.format("Failed to parse NewsAPI response: %s", e.getMessage()), e);
+			}
 			
 			if (!NewsApiConstants.STATUS_OK.equalsIgnoreCase(adapter.getStatus())) {
 				throw new ExternalApiException(String.format("NewsAPI returned status: %s", adapter.getStatus()));
@@ -55,6 +71,15 @@ public class NewsApiClient implements ExternalApiClient {
 			
 			return mapToArticles(adapter, category);
 			
+		} catch (org.springframework.web.client.HttpClientErrorException.Unauthorized e) {
+			log.error("NewsAPI authentication failed - check API key");
+			throw new ExternalApiException("NewsAPI authentication failed. Please check your API key.", e);
+		} catch (org.springframework.web.client.HttpClientErrorException.TooManyRequests e) {
+			log.error("NewsAPI rate limit exceeded");
+			throw new ExternalApiException("NewsAPI rate limit exceeded. Please try again later.", e);
+		} catch (org.springframework.web.client.ResourceAccessException e) {
+			log.error("NewsAPI connection timeout or network error", e);
+			throw new ExternalApiException(String.format("Failed to connect to NewsAPI: %s", e.getMessage()), e);
 		} catch (ExternalApiException e) {
 			throw e;
 		} catch (Exception e) {
@@ -83,20 +108,46 @@ public class NewsApiClient implements ExternalApiClient {
 	private List<Article> mapToArticles(NewsApiAdapter adapter, String category) {
 		List<Article> articles = new ArrayList<>();
 		
-		if (adapter.getArticles() == null) {
+		if (adapter == null || adapter.getArticles() == null || adapter.getArticles().isEmpty()) {
 			return articles;
 		}
 		
 		for (NewsApiAdapter.ArticleResponse articleResponse : adapter.getArticles()) {
-			Article article = newsApiArticleMapper.toArticle(articleResponse);
-			newsApiArticleMapper.updateCategory(article, category);
-			
-			if (StringUtils.isNotEmpty(article.getTitle())) {
-				articles.add(article);
+			try {
+				if (articleResponse == null) {
+					log.debug("Skipping null article response");
+					continue;
+				}
+				
+				Article article = newsApiArticleMapper.toArticle(articleResponse);
+				if (article == null) {
+					log.debug("Skipping article that failed to map");
+					continue;
+				}
+				
+				newsApiArticleMapper.updateCategory(article, category);
+				
+				// Validate title is not null or empty before adding
+				if (StringUtils.isNotEmpty(article.getTitle())) {
+					articles.add(article);
+				} else {
+					log.debug("Skipping article with empty or null title");
+				}
+			} catch (Exception e) {
+				log.warn("Error mapping article response to Article entity, skipping: {}", e.getMessage());
+				// Continue processing other articles even if one fails
 			}
 		}
 		
 		return articles;
+	}
+	
+	/**
+	 * Fallback method when NewsAPI circuit breaker is open or service is unavailable
+	 */
+	public List<Article> fetchArticlesFallback(String keyword, String category, Exception e) {
+		log.error("NewsAPI circuit breaker is open or service unavailable. Using fallback for keyword: {}, category: {}", keyword, category, e);
+		throw new ExternalApiException("NewsAPI is currently unavailable. Please try again later.", e);
 	}
 	
 	@Override

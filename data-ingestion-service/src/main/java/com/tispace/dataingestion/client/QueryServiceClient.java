@@ -3,6 +3,8 @@ package com.tispace.dataingestion.client;
 import com.tispace.common.dto.ArticleDTO;
 import com.tispace.common.dto.SummaryDTO;
 import com.tispace.common.exception.ExternalApiException;
+import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
+import io.github.resilience4j.retry.annotation.Retry;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -26,6 +28,8 @@ public class QueryServiceClient {
 	
 	private static final String SUMMARY_ENDPOINT = "/internal/summary";
 	
+	@CircuitBreaker(name = "queryService", fallbackMethod = "getArticleSummaryFallback")
+	@Retry(name = "queryService")
 	public SummaryDTO getArticleSummary(Long articleId, ArticleDTO article) {
 		try {
 			String url = String.format("%s%s/%d", queryServiceUrl, SUMMARY_ENDPOINT, articleId);
@@ -42,9 +46,20 @@ public class QueryServiceClient {
 				return response.getBody();
 			}
 			
-			log.warn("Unexpected response from query-service: {}", response.getStatusCode());
-			throw new ExternalApiException("Failed to get summary from query-service");
+			if (response.getBody() == null) {
+				log.warn("Query-service returned null response body with status: {}", response.getStatusCode());
+				throw new ExternalApiException("Query-service returned empty response");
+			}
 			
+			log.warn("Unexpected response from query-service: {}", response.getStatusCode());
+			throw new ExternalApiException(String.format("Failed to get summary from query-service: status %s", response.getStatusCode()));
+			
+		} catch (org.springframework.web.client.HttpClientErrorException.NotFound e) {
+			log.error("Article not found in query-service: {}", e.getMessage());
+			throw new ExternalApiException("Article not found", e);
+		} catch (org.springframework.web.client.ResourceAccessException e) {
+			log.error("Query-service connection timeout or unavailable: {}", e.getMessage());
+			throw new ExternalApiException("Query-service is unavailable. Please try again later.", e);
 		} catch (HttpClientErrorException e) {
 			log.error("Error calling query-service for summary: {}", e.getMessage());
 			throw new ExternalApiException(String.format("Query service error: %s", e.getMessage()), e);
@@ -52,6 +67,14 @@ public class QueryServiceClient {
 			log.error("Unexpected error calling query-service", e);
 			throw new ExternalApiException(String.format("Failed to get summary: %s", e.getMessage()), e);
 		}
+	}
+	
+	/**
+	 * Fallback method when circuit breaker is open or service is unavailable
+	 */
+	private SummaryDTO getArticleSummaryFallback(Long articleId, ArticleDTO article, Exception e) {
+		log.error("Query-service circuit breaker is open or service unavailable. Using fallback for article id: {}", articleId, e);
+		throw new ExternalApiException("Query-service is currently unavailable. Please try again later.", e);
 	}
 }
 

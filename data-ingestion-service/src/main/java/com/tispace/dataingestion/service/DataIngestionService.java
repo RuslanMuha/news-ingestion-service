@@ -43,11 +43,23 @@ public class DataIngestionService {
 			}
 			
 			int savedCount = 0;
+			int skippedCount = 0;
 			for (Article article : articles) {
+				// Validate article has required fields before saving
+				if (article == null || StringUtils.isEmpty(article.getTitle())) {
+					log.warn("Skipping article with null or empty title");
+					skippedCount++;
+					continue;
+				}
+				
 				if (articleRepository.findByTitle(article.getTitle()).isEmpty()) {
 					articleRepository.save(article);
 					savedCount++;
 				}
+			}
+			
+			if (skippedCount > 0) {
+				log.warn("Skipped {} articles due to missing or invalid title", skippedCount);
 			}
 			
 			log.info("Successfully saved {} new articles to database", savedCount);

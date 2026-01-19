@@ -1,6 +1,7 @@
 package com.tispace.common.exception;
 
 import com.tispace.common.dto.ErrorResponseDTO;
+import org.apache.commons.lang3.StringUtils;
 import io.swagger.v3.oas.annotations.Hidden;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.core.annotation.Order;
@@ -50,7 +51,19 @@ public class GlobalExceptionHandler {
 			.reduce((a, b) -> String.format("%s, %s", a, b))
 			.orElse(VALIDATION_FAILED_MESSAGE);
 		
+		// If no field errors, use the exception message if available
+		if (VALIDATION_FAILED_MESSAGE.equals(message)) {
+            ex.getMessage();
+            message = ex.getMessage();
+        }
+		
 		return buildErrorResponse("VALIDATION_ERROR", message, HttpStatus.BAD_REQUEST, request);
+	}
+	
+	@ExceptionHandler(IllegalArgumentException.class)
+	public ResponseEntity<ErrorResponseDTO> handleIllegalArgumentException(IllegalArgumentException ex, WebRequest request) {
+		log.error("Illegal argument: {}", ex.getMessage());
+		return buildErrorResponse("INVALID_ARGUMENT", ex.getMessage() != null ? ex.getMessage() : "Invalid argument provided", HttpStatus.BAD_REQUEST, request);
 	}
 	
 	@ExceptionHandler(NoResourceFoundException.class)
@@ -91,7 +104,13 @@ public class GlobalExceptionHandler {
 					.build());
 		}
 		
-		log.error("Unexpected error: {}", ex.getMessage(), ex);
+		// Don't expose full exception details to client for security
+		String errorMessage = ex.getMessage();
+		if (errorMessage != null && errorMessage.length() > 200) {
+			errorMessage = errorMessage.substring(0, 200) + "...";
+		}
+		
+		log.error("Unexpected error: {}", errorMessage != null ? errorMessage : "Unknown error", ex);
 		return buildErrorResponse("INTERNAL_ERROR", UNEXPECTED_ERROR_MESSAGE, HttpStatus.INTERNAL_SERVER_ERROR, request);
 	}
 	
@@ -107,7 +126,16 @@ public class GlobalExceptionHandler {
 	}
 	
 	private String extractPath(WebRequest request) {
-		return request.getDescription(false).replace(URI_PREFIX, "");
+		try {
+			String description = request.getDescription(false);
+			if (StringUtils.isEmpty(description)) {
+				return "unknown";
+			}
+			return description.replace(URI_PREFIX, "");
+		} catch (Exception e) {
+			log.warn("Failed to extract path from request", e);
+			return "unknown";
+		}
 	}
 }
 

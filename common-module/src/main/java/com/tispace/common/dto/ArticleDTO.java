@@ -2,6 +2,9 @@ package com.tispace.common.dto;
 
 import com.fasterxml.jackson.annotation.JsonFormat;
 import io.swagger.v3.oas.annotations.media.Schema;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Positive;
+import jakarta.validation.constraints.Size;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -16,15 +19,20 @@ import java.time.LocalDateTime;
 @Schema(description = "Article data transfer object containing article information")
 public class ArticleDTO {
 	
+	@Positive(message = "Article ID must be a positive number")
 	@Schema(description = "Unique identifier of the article", example = "1")
 	private Long id;
 	
-	@Schema(description = "Title of the article", example = "Breaking: New Technology Released")
+	@NotBlank(message = "Article title is required and cannot be empty")
+	@Size(max = 500, message = "Article title cannot exceed 500 characters")
+	@Schema(description = "Title of the article", example = "Breaking: New Technology Released", requiredMode = Schema.RequiredMode.REQUIRED)
 	private String title;
 	
+	@Size(max = 10000, message = "Article description cannot exceed 10000 characters")
 	@Schema(description = "Description or content of the article", example = "A revolutionary new technology that promises to transform the industry")
 	private String description;
 	
+	@Size(max = 255, message = "Author name cannot exceed 255 characters")
 	@Schema(description = "Author of the article", example = "John Doe")
 	private String author;
 	
@@ -32,6 +40,7 @@ public class ArticleDTO {
 	@Schema(description = "Publication date and time of the article", example = "2025-01-18T10:00:00")
 	private LocalDateTime publishedAt;
 	
+	@Size(max = 100, message = "Category cannot exceed 100 characters")
 	@Schema(description = "Category of the article", example = "technology")
 	private String category;
 	

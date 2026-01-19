@@ -24,6 +24,30 @@ cache:
   summary:
     ttl-hours: 24
 
+resilience4j:
+  circuitbreaker:
+    instances:
+      openAiApi:
+        registerHealthIndicator: true
+        slidingWindowSize: 10
+        minimumNumberOfCalls: 5
+        permittedNumberOfCallsInHalfOpenState: 3
+        automaticTransitionFromOpenToHalfOpenEnabled: true
+        waitDurationInOpenState: 30s
+        failureRateThreshold: 50
+        slowCallRateThreshold: 100
+        slowCallDurationThreshold: 10s
+  retry:
+    instances:
+      openAiApi:
+        maxAttempts: 3
+        waitDuration: 2s
+        enableExponentialBackoff: true
+        exponentialBackoffMultiplier: 2
+        retryExceptions:
+          - java.net.SocketTimeoutException
+          - java.util.concurrent.TimeoutException
+
 server:
   port: 8082
   error:
