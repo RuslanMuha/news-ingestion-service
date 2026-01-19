@@ -46,6 +46,7 @@ services:
       DB_USER: postgres
       DB_PASSWORD: postgres
       NEWS_API_KEY: ${NEWS_API_KEY:-}
+      QUERY_SERVICE_URL: http://query-service:8082
       SPRING_PROFILES_ACTIVE: docker
     ports:
       - "8081:8081"
@@ -69,15 +70,12 @@ services:
     environment:
       REDIS_HOST: redis
       REDIS_PORT: 6379
-      DATA_INGESTION_SERVICE_URL: http://data-ingestion-service:8081
       OPENAI_API_KEY: ${OPENAI_API_KEY:-}
       OPENAI_MODEL: ${OPENAI_MODEL:-gpt-4o-mini}
       SPRING_PROFILES_ACTIVE: docker
     ports:
       - "8082:8082"
     depends_on:
-      data-ingestion-service:
-        condition: service_healthy
       redis:
         condition: service_healthy
     healthcheck:

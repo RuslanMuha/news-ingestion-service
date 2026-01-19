@@ -15,10 +15,6 @@ spring:
           max-idle: 8
           min-idle: 0
 
-services:
-  data-ingestion:
-    url: ${DATA_INGESTION_SERVICE_URL:http://data-ingestion-service:8081}
-
 openai:
   api-key: ${OPENAI_API_KEY:}
   model: ${OPENAI_MODEL:gpt-3.5-turbo}
@@ -55,4 +51,10 @@ logging:
     com.tispace: DEBUG
     org.springframework.web: INFO
     org.hibernate: WARN
+
+springdoc:
+  api-docs:
+    enabled: false  # Internal service - no public API documentation
+  swagger-ui:
+    enabled: false  # Internal service - no public API documentation
 

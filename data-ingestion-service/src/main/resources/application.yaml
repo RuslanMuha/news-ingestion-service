@@ -25,6 +25,10 @@ external-api:
     url: https://newsapi.org/v2/everything
     api-key: ${NEWS_API_KEY:}
 
+services:
+  query-service:
+    url: ${QUERY_SERVICE_URL:http://query-service:8082}
+
 scheduler:
   enabled: true
   cron: 0 0 */6 * * *
@@ -58,4 +62,13 @@ logging:
     com.tispace: DEBUG
     org.springframework.web: INFO
     org.hibernate: WARN
+
+springdoc:
+  api-docs:
+    path: /v3/api-docs
+  swagger-ui:
+    path: /swagger-ui.html
+    enabled: true
+    operations-sorter: method
+    tags-sorter: alpha
 

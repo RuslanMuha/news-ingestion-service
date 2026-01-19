@@ -1,7 +1,9 @@
 package com.tispace.common.exception;
 
 import com.tispace.common.dto.ErrorResponseDTO;
+import io.swagger.v3.oas.annotations.Hidden;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.core.annotation.Order;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.MethodArgumentNotValidException;
@@ -13,6 +15,8 @@ import org.springframework.web.servlet.resource.NoResourceFoundException;
 import java.time.LocalDateTime;
 
 @RestControllerAdvice
+@Order(1) // Lower priority to let SpringDoc handle its own exceptions first
+@Hidden // Exclude from SpringDoc/OpenAPI scanning to avoid compatibility issues
 @Slf4j
 public class GlobalExceptionHandler {
 	
@@ -59,12 +63,34 @@ public class GlobalExceptionHandler {
 			return ResponseEntity.notFound().build();
 		}
 		
+		// Ignore SpringDoc/OpenAPI paths - let SpringDoc handle them
+		if (path.contains("/v3/api-docs") || path.contains("/swagger-ui") || path.contains("/swagger-ui.html")) {
+			log.debug("SpringDoc path not found: {}", path);
+			return ResponseEntity.notFound().build();
+		}
+		
 		log.warn("Resource not found: {}", path);
 		return buildErrorResponse("NOT_FOUND", ex.getMessage(), HttpStatus.NOT_FOUND, request);
 	}
 	
 	@ExceptionHandler(Exception.class)
 	public ResponseEntity<ErrorResponseDTO> handleGenericException(Exception ex, WebRequest request) {
+		String path = extractPath(request);
+		
+		// Ignore SpringDoc/OpenAPI paths - let SpringDoc handle its own errors
+		// With @Hidden annotation, SpringDoc shouldn't scan this handler, but we add this check as a safety measure
+		if (path.contains("/v3/api-docs") || path.contains("/swagger-ui") || path.contains("/swagger-ui.html")) {
+			log.debug("SpringDoc path detected: {}, not handling exception", path);
+			// Return a simple response without logging to avoid interfering with SpringDoc
+			return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+				.body(ErrorResponseDTO.builder()
+					.errorCode("INTERNAL_ERROR")
+					.message(UNEXPECTED_ERROR_MESSAGE)
+					.timestamp(LocalDateTime.now())
+					.path(path)
+					.build());
+		}
+		
 		log.error("Unexpected error: {}", ex.getMessage(), ex);
 		return buildErrorResponse("INTERNAL_ERROR", UNEXPECTED_ERROR_MESSAGE, HttpStatus.INTERNAL_SERVER_ERROR, request);
 	}

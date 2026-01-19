@@ -3,9 +3,6 @@ package com.tispace.queryservice.service;
 import com.tispace.common.dto.ArticleDTO;
 import com.tispace.common.dto.SummaryDTO;
 import com.tispace.queryservice.constants.ArticleConstants;
-import com.tispace.queryservice.service.ArticleQueryService;
-import com.tispace.queryservice.service.CacheService;
-import com.tispace.queryservice.service.ChatGptService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -20,12 +17,15 @@ public class ArticleSummaryService {
 	
 	private final CacheService cacheService;
 	private final ChatGptService chatGptService;
-	private final ArticleQueryService articleQueryService;
 	
 	@Value("${cache.summary.ttl-hours:24}")
 	private int cacheTtlHours;
 	
-	public SummaryDTO getSummary(Long articleId) {
+	/**
+	 * Get summary for an article. The article data should be provided by the caller.
+	 * This method only handles caching and ChatGPT generation.
+	 */
+	public SummaryDTO getSummary(Long articleId, ArticleDTO article) {
 		log.debug("Fetching summary for article with id: {}", articleId);
 		
 		// Check cache first
@@ -37,9 +37,6 @@ public class ArticleSummaryService {
 			cachedSummary.setCached(true);
 			return cachedSummary;
 		}
-		
-		// Verify article exists and get it
-		ArticleDTO article = articleQueryService.getArticleDTOById(articleId);
 		
 		// Generate summary using ChatGPT
 		String summary = chatGptService.generateSummary(article);
@@ -56,5 +53,6 @@ public class ArticleSummaryService {
 		
 		return summaryDTO;
 	}
+	
 }
 
