@@ -9,6 +9,7 @@ import io.github.resilience4j.ratelimiter.annotation.RateLimiter;
 import io.github.resilience4j.retry.annotation.Retry;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpMethod;
@@ -16,6 +17,10 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestTemplate;
+
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.Executor;
+import java.util.concurrent.TimeUnit;
 
 @Component
 @RequiredArgsConstructor
@@ -27,6 +32,9 @@ public class QueryServiceClient {
 	
 	private final RestTemplate restTemplate;
 	
+	@Qualifier("queryServiceExecutor")
+	private final Executor queryServiceExecutor;
+	
 	private static final String SUMMARY_ENDPOINT = "/internal/summary";
 	
 	@CircuitBreaker(name = "queryService", fallbackMethod = "getArticleSummaryFallback")
@@ -36,12 +44,25 @@ public class QueryServiceClient {
 		String url = String.format("%s%s/%d", queryServiceUrl, SUMMARY_ENDPOINT, articleId);
 		
 		HttpEntity<ArticleDTO> request = new HttpEntity<>(article);
-		ResponseEntity<SummaryDTO> response = restTemplate.exchange(
-			url,
-			HttpMethod.POST,
-			request,
-			SummaryDTO.class
-		);
+
+        ResponseEntity<SummaryDTO> response;
+        // Execute HTTP call in dedicated thread pool (bulkhead isolation)
+        CompletableFuture<ResponseEntity<SummaryDTO>> responseFuture =
+                CompletableFuture.supplyAsync(() ->
+                                restTemplate.exchange(
+                                        url,
+                                        HttpMethod.POST,
+                                        request,
+                                        SummaryDTO.class
+                                ), queryServiceExecutor)
+                        .orTimeout(2, TimeUnit.SECONDS);
+
+        try {
+            response = responseFuture.join();
+        } catch (Exception e) {
+            log.error("Error executing query-service request", e);
+            throw new ExternalApiException("Failed to get summary from query-service", e);
+        }
 		
 		if (response.getStatusCode() == HttpStatus.OK && response.getBody() != null) {
 			return response.getBody();

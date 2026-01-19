@@ -123,6 +123,16 @@ resilience4j:
         limitRefreshPeriod: ${RATE_LIMITER_PERIOD:1s}
         timeoutDuration: ${RATE_LIMITER_TIMEOUT:5s}
 
+bulkhead:
+  newsapi:
+    core-pool-size: 5
+    max-pool-size: 10
+    queue-capacity: 100
+  queryservice:
+    core-pool-size: 5
+    max-pool-size: 10
+    queue-capacity: 100
+
 logging:
   level:
     root: INFO

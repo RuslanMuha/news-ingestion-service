@@ -11,16 +11,21 @@ import org.apache.commons.lang3.StringUtils;
 import com.tispace.dataingestion.adapter.NewsApiAdapter;
 import com.tispace.dataingestion.constants.NewsApiConstants;
 import com.tispace.dataingestion.mapper.NewsApiArticleMapper;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
+import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.web.client.RestTemplate;
 import org.springframework.web.util.UriComponentsBuilder;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
+import java.util.concurrent.Executor;
+import java.util.concurrent.TimeUnit;
 
 @Service
 @RequiredArgsConstructor
@@ -30,6 +35,9 @@ public class NewsApiClient implements ExternalApiClient {
 	private final RestTemplate restTemplate;
 	private final ObjectMapper objectMapper;
 	private final NewsApiArticleMapper newsApiArticleMapper;
+	
+	@Qualifier("newsApiExecutor")
+	private final Executor newsApiExecutor;
 	
 	@Value("${external-api.news-api.url:https://newsapi.org/v2/everything}")
 	private String newsApiUrl;
@@ -45,10 +53,22 @@ public class NewsApiClient implements ExternalApiClient {
 		
 		String url = buildUrl(keyword, category);
 		log.debug("NewsAPI URL: {}", maskApiKey(url));
-		
-		ResponseEntity<String> response = restTemplate.getForEntity(url, String.class);
-		
-		if (!response.getStatusCode().is2xxSuccessful()) {
+
+        ResponseEntity<String> response;
+        CompletableFuture<ResponseEntity<String>> responseFuture =
+                CompletableFuture.supplyAsync(() -> restTemplate.getForEntity(url, String.class), newsApiExecutor)
+                        .orTimeout(2, TimeUnit.SECONDS);
+
+        try {
+            response = responseFuture.join();
+        } catch (CompletionException e) {
+            Throwable cause = e.getCause();
+            log.error("NewsAPI request failed: {}", cause.toString());
+            throw new ExternalApiException("Failed to fetch articles from NewsAPI", cause);
+        }
+
+
+        if (!response.getStatusCode().is2xxSuccessful()) {
 			throw new ExternalApiException(String.format("NewsAPI returned status: %s", response.getStatusCode()));
 		}
 		
