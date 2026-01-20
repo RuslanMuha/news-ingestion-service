@@ -1,10 +1,7 @@
 package com.tispace.common.entity;
 
 import jakarta.persistence.*;
-import lombok.AllArgsConstructor;
-import lombok.Getter;
-import lombok.NoArgsConstructor;
-import lombok.Setter;
+import lombok.*;
 
 import java.time.LocalDateTime;
 
@@ -19,18 +16,21 @@ import java.time.LocalDateTime;
 @Setter
 @NoArgsConstructor
 @AllArgsConstructor
+@EqualsAndHashCode(callSuper = false, onlyExplicitlyIncluded = true)
 public class Article extends BaseEntity {
 	
 	@Id
 	@GeneratedValue(strategy = GenerationType.IDENTITY)
 	private Long id;
-	
+
+    @EqualsAndHashCode.Include
 	@Column(name = "title", nullable = false, length = 500)
 	private String title;
 	
 	@Column(name = "description", columnDefinition = "TEXT")
 	private String description;
-	
+
+    @EqualsAndHashCode.Include
 	@Column(name = "author", length = 255)
 	private String author;
 	
