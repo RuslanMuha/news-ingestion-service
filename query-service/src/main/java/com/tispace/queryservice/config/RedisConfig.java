@@ -26,10 +26,10 @@ public class RedisConfig {
 	private int port;
 	
 	@Value("${spring.data.redis.timeout:2000}")
-	private long connectionTimeoutMs;
+	private Duration connectionTimeoutMs;
 	
 	@Value("${spring.data.redis.command-timeout:1000}")
-	private long commandTimeoutMs;
+	private Duration commandTimeoutMs;
 	
 	@Bean
 	public RedisConnectionFactory redisConnectionFactory() {
@@ -38,11 +38,11 @@ public class RedisConfig {
 		config.setPort(port);
 
 		SocketOptions socketOptions = SocketOptions.builder()
-			.connectTimeout(Duration.ofMillis(connectionTimeoutMs))
+			.connectTimeout(connectionTimeoutMs)
 			.build();
 
 		TimeoutOptions timeoutOptions = TimeoutOptions.builder()
-			.fixedTimeout(Duration.ofMillis(commandTimeoutMs))
+			.fixedTimeout(commandTimeoutMs)
 			.build();
 		
 		ClientOptions clientOptions = ClientOptions.builder()
@@ -52,7 +52,7 @@ public class RedisConfig {
 		
 		LettuceClientConfiguration clientConfig = LettuceClientConfiguration.builder()
 			.clientOptions(clientOptions)
-			.commandTimeout(Duration.ofMillis(commandTimeoutMs))
+			.commandTimeout(commandTimeoutMs)
 			.build();
 		
 		return new LettuceConnectionFactory(config, clientConfig);

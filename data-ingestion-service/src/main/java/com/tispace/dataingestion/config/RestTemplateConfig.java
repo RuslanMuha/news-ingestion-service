@@ -1,6 +1,7 @@
 package com.tispace.dataingestion.config;
 
 import com.tispace.dataingestion.constants.ApiConstants;
+import org.springframework.boot.web.client.RestTemplateBuilder;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.client.ClientHttpRequestFactory;
@@ -15,8 +16,10 @@ import org.springframework.web.client.RestTemplate;
 public class RestTemplateConfig {
 
     @Bean
-    public RestTemplate restTemplate(ClientHttpRequestFactory factory) {
-        return new RestTemplate(factory);
+    public RestTemplate restTemplate(ClientHttpRequestFactory factory, RestTemplateBuilder builder) {
+        return builder
+                .requestFactory(() -> factory)
+                .build();
     }
 	
 	@Bean
