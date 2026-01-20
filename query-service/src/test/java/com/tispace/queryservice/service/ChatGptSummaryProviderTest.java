@@ -7,6 +7,8 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import java.util.UUID;
+
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
 
@@ -17,6 +19,7 @@ class ChatGptSummaryProviderTest {
 	private ChatGptService chatGptService;
 	
 	private ChatGptSummaryProvider provider;
+	private static final UUID ARTICLE_ID = UUID.fromString("01234567-89ab-7def-0123-456789abcdef");
 	
 	@BeforeEach
 	void setUp() {
@@ -26,7 +29,7 @@ class ChatGptSummaryProviderTest {
 	@Test
 	void testGenerateSummary_Success_ShouldReturnSummary() throws Exception {
 		ArticleDTO article = new ArticleDTO();
-		article.setId(1L);
+		article.setId(ARTICLE_ID);
 		article.setTitle("Test Article");
 		
 		String expectedSummary = "This is a test summary";

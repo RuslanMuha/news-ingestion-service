@@ -18,6 +18,8 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestTemplate;
 
+import java.util.UUID;
+
 @Component
 @RequiredArgsConstructor
 @Slf4j
@@ -33,8 +35,8 @@ public class QueryServiceClient {
 	@CircuitBreaker(name = "queryService", fallbackMethod = "getArticleSummaryFallback")
 	@Retry(name = "queryService")
 	@Bulkhead(name = "queryService", type = Bulkhead.Type.THREADPOOL, fallbackMethod = "getArticleSummaryFallback")
-	public SummaryDTO getArticleSummary(Long articleId, ArticleDTO article) {
-		String url = String.format("%s%s/%d", queryServiceUrl, SUMMARY_ENDPOINT, articleId);
+	public SummaryDTO getArticleSummary(UUID articleId, ArticleDTO article) {
+		String url = String.format("%s%s/%s", queryServiceUrl, SUMMARY_ENDPOINT, articleId);
 		
 		HttpEntity<ArticleDTO> request = new HttpEntity<>(article);
 		ResponseEntity<SummaryDTO> response = queryServiceRestTemplate.exchange(
@@ -63,7 +65,7 @@ public class QueryServiceClient {
 	 * Attempts to return a graceful degraded response instead of always throwing exception.
 	 */
 	@SuppressWarnings("unused")
-	private SummaryDTO getArticleSummaryFallback(Long articleId, ArticleDTO article, Exception e) {
+	private SummaryDTO getArticleSummaryFallback(UUID articleId, ArticleDTO article, Exception e) {
 		if (e instanceof RequestNotPermitted) {
 			log.warn("Rate limit exceeded for query-service. Article id: {}", articleId);
 			throw new ExternalApiException("Rate limit exceeded. Please try again later.", e);

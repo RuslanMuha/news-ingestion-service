@@ -1,13 +1,15 @@
 package com.tispace.common.exception;
 
+import java.util.UUID;
+
 public class NotFoundException extends BusinessException {
 	
 	public NotFoundException(String message) {
 		super(message);
 	}
 	
-	public NotFoundException(String resource, Long id) {
-		super(String.format("%s with id %d not found", resource, id));
+	public NotFoundException(String resource, UUID id) {
+		super(String.format("%s with id %s not found", resource, id));
 	}
 }
 

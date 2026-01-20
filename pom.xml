@@ -29,9 +29,10 @@
 		<spring-cloud.version>2025.0.1</spring-cloud.version>
 		<mapstruct.version>1.5.5.Final</mapstruct.version>
 		<openai-java.version>0.18.0</openai-java.version>
-		<commons-lang3.version>3.14.0</commons-lang3.version>
+        <commons-lang3.version>3.14.0</commons-lang3.version>
         <micrometer-tracing-bridge-otel.version>1.6.1</micrometer-tracing-bridge-otel.version>
 		<lombok.version>1.18.30</lombok.version>
+		<uuid-creator.version>5.3.7</uuid-creator.version>
     </properties>
 	<dependencyManagement>
 		<dependencies>
@@ -66,6 +67,11 @@
 				<groupId>org.apache.commons</groupId>
 				<artifactId>commons-lang3</artifactId>
 				<version>${commons-lang3.version}</version>
+			</dependency>
+			<dependency>
+				<groupId>com.github.f4b6a3</groupId>
+				<artifactId>uuid-creator</artifactId>
+				<version>${uuid-creator.version}</version>
 			</dependency>
 		</dependencies>
 	</dependencyManagement>

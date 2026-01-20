@@ -11,6 +11,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.time.LocalDateTime;
 import java.util.Optional;
+import java.util.UUID;
 
 import static org.mockito.Mockito.*;
 
@@ -30,11 +31,12 @@ class ScheduledIngestionJobTest {
 	private ScheduledIngestionJob scheduledIngestionJob;
 	
 	private Article mockArticle;
+	private static final UUID ARTICLE_ID = UUID.fromString("01234567-89ab-7def-0123-456789abcdef");
 	
 	@BeforeEach
 	void setUp() {
 		mockArticle = new Article();
-		mockArticle.setId(1L);
+		mockArticle.setId(ARTICLE_ID);
 		mockArticle.setTitle("Test Article");
 		mockArticle.setCreatedAt(LocalDateTime.now());
 	}

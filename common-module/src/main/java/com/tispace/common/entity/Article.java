@@ -1,9 +1,11 @@
 package com.tispace.common.entity;
 
+import com.github.f4b6a3.uuid.UuidCreator;
 import jakarta.persistence.*;
 import lombok.*;
 
 import java.time.LocalDateTime;
+import java.util.UUID;
 
 @Entity
 @Table(name = "articles", indexes = {
@@ -20,8 +22,15 @@ import java.time.LocalDateTime;
 public class Article extends BaseEntity {
 	
 	@Id
-	@GeneratedValue(strategy = GenerationType.IDENTITY)
-	private Long id;
+	@Column(name = "id", columnDefinition = "UUID", nullable = false, updatable = false)
+	private UUID id;
+	
+	@PrePersist
+	protected void onCreate() {
+		if (id == null) {
+			id = UuidCreator.getTimeOrderedEpoch();
+		}
+	}
 
     @EqualsAndHashCode.Include
 	@Column(name = "title", nullable = false, length = 500)

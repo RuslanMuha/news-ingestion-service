@@ -13,6 +13,8 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.UUID;
+
 @Service
 @RequiredArgsConstructor
 @Slf4j
@@ -34,12 +36,12 @@ public class ArticleQueryService {
 			.map(articleMapper::toDTO);
 	}
 	
-	public Article getArticleById(Long id) {
+	public Article getArticleById(UUID id) {
 		return articleRepository.findById(id)
 			.orElseThrow(() -> new NotFoundException("Article", id));
 	}
 	
-	public ArticleDTO getArticleDTOById(Long id) {
+	public ArticleDTO getArticleDTOById(UUID id) {
 		Article article = getArticleById(id);
 		return articleMapper.toDTO(article);
 	}

@@ -1,5 +1,7 @@
 package com.tispace.queryservice.constants;
 
+import java.util.UUID;
+
 public final class ArticleConstants {
 	
 	private ArticleConstants() {
@@ -9,7 +11,7 @@ public final class ArticleConstants {
 	public static final String CACHE_KEY_PREFIX = "article:summary:";
 	public static final String SINGLE_FLIGHT_KEY_KEY_PREFIX = "singleflight:article:summary:";
 
-	public static String buildCacheKey(Long articleId) {
+	public static String buildCacheKey(UUID articleId) {
 		return CACHE_KEY_PREFIX + articleId;
 	}
 

@@ -3,5 +3,7 @@ databaseChangeLog:
       file: db/changelog/changes/001-create-articles-table.sql
   - include:
       file: db/changelog/changes/002-add-unique-index-title.sql
+  - include:
+      file: db/changelog/changes/003-change-article-id-to-uuid.sql
 
 

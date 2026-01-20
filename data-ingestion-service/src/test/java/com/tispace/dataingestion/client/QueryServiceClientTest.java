@@ -20,6 +20,7 @@ import org.springframework.web.client.ResourceAccessException;
 import org.springframework.web.client.RestTemplate;
 
 import java.time.LocalDateTime;
+import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.*;
@@ -37,13 +38,14 @@ class QueryServiceClientTest {
 	private ArticleDTO mockArticleDTO;
 	private SummaryDTO mockSummaryDTO;
 	private static final String QUERY_SERVICE_URL = "http://query-service:8082";
+	private static final UUID ARTICLE_ID = UUID.fromString("01234567-89ab-7def-0123-456789abcdef");
 	
 	@BeforeEach
 	void setUp() {
 		ReflectionTestUtils.setField(queryServiceClient, "queryServiceUrl", QUERY_SERVICE_URL);
 		
 		mockArticleDTO = ArticleDTO.builder()
-			.id(1L)
+			.id(ARTICLE_ID)
 			.title("Test Article")
 			.description("Test Description")
 			.author("Test Author")
@@ -52,7 +54,7 @@ class QueryServiceClientTest {
 			.build();
 		
 		mockSummaryDTO = SummaryDTO.builder()
-			.articleId(1L)
+			.articleId(ARTICLE_ID)
 			.summary("Test Summary")
 			.cached(false)
 			.build();
@@ -69,13 +71,13 @@ class QueryServiceClientTest {
 			eq(SummaryDTO.class)
 		)).thenReturn(responseEntity);
 		
-		SummaryDTO result = queryServiceClient.getArticleSummary(1L, mockArticleDTO);
+		SummaryDTO result = queryServiceClient.getArticleSummary(ARTICLE_ID, mockArticleDTO);
 		
 		assertNotNull(result);
-		assertEquals(1L, result.getArticleId());
+		assertEquals(ARTICLE_ID, result.getArticleId());
 		assertEquals("Test Summary", result.getSummary());
 		verify(restTemplate, times(1)).exchange(
-			eq(QUERY_SERVICE_URL + "/internal/summary/1"),
+			eq(QUERY_SERVICE_URL + "/internal/summary/" + ARTICLE_ID),
 			eq(HttpMethod.POST),
 			any(HttpEntity.class),
 			eq(SummaryDTO.class)
@@ -94,7 +96,7 @@ class QueryServiceClientTest {
 		)).thenReturn(responseEntity);
 		
 		ExternalApiException exception = assertThrows(ExternalApiException.class, 
-			() -> queryServiceClient.getArticleSummary(1L, mockArticleDTO));
+			() -> queryServiceClient.getArticleSummary(ARTICLE_ID, mockArticleDTO));
 		
 		assertTrue(exception.getMessage().contains("empty response"));
 	}
@@ -111,7 +113,7 @@ class QueryServiceClientTest {
 		)).thenReturn(responseEntity);
 		
 		ExternalApiException exception = assertThrows(ExternalApiException.class, 
-			() -> queryServiceClient.getArticleSummary(1L, mockArticleDTO));
+			() -> queryServiceClient.getArticleSummary(ARTICLE_ID, mockArticleDTO));
 		
 		assertTrue(exception.getMessage().contains("Failed to get summary"));
 	}
@@ -130,7 +132,7 @@ class QueryServiceClientTest {
 		// In unit tests without Resilience4j configuration, exceptions are thrown directly
 		// Circuit breaker/retry/rate limiter annotations don't work without proper setup
 		assertThrows(HttpClientErrorException.class, 
-			() -> queryServiceClient.getArticleSummary(1L, mockArticleDTO));
+			() -> queryServiceClient.getArticleSummary(ARTICLE_ID, mockArticleDTO));
 	}
 	
 	@Test
@@ -146,7 +148,7 @@ class QueryServiceClientTest {
 		
 		// In unit tests without Resilience4j configuration, exceptions are thrown directly
 		assertThrows(HttpServerErrorException.class, 
-			() -> queryServiceClient.getArticleSummary(1L, mockArticleDTO));
+			() -> queryServiceClient.getArticleSummary(ARTICLE_ID, mockArticleDTO));
 	}
 	
 	@Test
@@ -162,7 +164,7 @@ class QueryServiceClientTest {
 		
 		// In unit tests without Resilience4j configuration, exceptions are thrown directly
 		assertThrows(ResourceAccessException.class, 
-			() -> queryServiceClient.getArticleSummary(1L, mockArticleDTO));
+			() -> queryServiceClient.getArticleSummary(ARTICLE_ID, mockArticleDTO));
 	}
 	
 	@Test
@@ -178,7 +180,7 @@ class QueryServiceClientTest {
 		
 		// In unit tests without Resilience4j configuration, exceptions are thrown directly
 		assertThrows(RuntimeException.class, 
-			() -> queryServiceClient.getArticleSummary(1L, mockArticleDTO));
+			() -> queryServiceClient.getArticleSummary(ARTICLE_ID, mockArticleDTO));
 	}
 	
 	@Test
@@ -196,11 +198,12 @@ class QueryServiceClientTest {
 		
 		// In unit tests without Resilience4j configuration, exceptions are thrown directly
 		assertThrows(RuntimeException.class, 
-			() -> queryServiceClient.getArticleSummary(1L, mockArticleDTO));
+			() -> queryServiceClient.getArticleSummary(ARTICLE_ID, mockArticleDTO));
 	}
 	
 	@Test
 	void testGetArticleSummary_DifferentArticleId_UsesCorrectUrl() {
+		UUID differentId = UUID.fromString("99999999-9999-7999-9999-999999999999");
 		ResponseEntity<SummaryDTO> responseEntity = new ResponseEntity<>(mockSummaryDTO, HttpStatus.OK);
 		
 		when(restTemplate.exchange(
@@ -210,10 +213,10 @@ class QueryServiceClientTest {
 			eq(SummaryDTO.class)
 		)).thenReturn(responseEntity);
 		
-		queryServiceClient.getArticleSummary(999L, mockArticleDTO);
+		queryServiceClient.getArticleSummary(differentId, mockArticleDTO);
 		
 		verify(restTemplate, times(1)).exchange(
-			eq(QUERY_SERVICE_URL + "/internal/summary/999"),
+			eq(QUERY_SERVICE_URL + "/internal/summary/" + differentId),
 			eq(HttpMethod.POST),
 			any(HttpEntity.class),
 			eq(SummaryDTO.class)
@@ -231,7 +234,7 @@ class QueryServiceClientTest {
 			eq(SummaryDTO.class)
 		)).thenReturn(responseEntity);
 		
-		SummaryDTO result = queryServiceClient.getArticleSummary(1L, null);
+		SummaryDTO result = queryServiceClient.getArticleSummary(ARTICLE_ID, null);
 		
 		assertNotNull(result);
 		verify(restTemplate, times(1)).exchange(
@@ -254,7 +257,7 @@ class QueryServiceClientTest {
 		)).thenReturn(responseEntity);
 		
 		ExternalApiException exception = assertThrows(ExternalApiException.class, 
-			() -> queryServiceClient.getArticleSummary(1L, mockArticleDTO));
+			() -> queryServiceClient.getArticleSummary(ARTICLE_ID, mockArticleDTO));
 		
 		assertTrue(exception.getMessage().contains("Failed to get summary"));
 	}

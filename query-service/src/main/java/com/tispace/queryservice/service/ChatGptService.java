@@ -19,6 +19,7 @@ import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.UUID;
 
 @Service
 @Slf4j
@@ -79,7 +80,7 @@ public class ChatGptService {
 	/**
 	 * Extracts content from ChatGPT completion response.
 	 */
-	private String extractContent(ChatCompletionResult completion, Long articleId) {
+	private String extractContent(ChatCompletionResult completion, UUID articleId) {
 		if (completion == null) {
 			log.error("OpenAI API returned null completion for article id: {}", articleId);
 			throw new ExternalApiException("OpenAI API returned null response");

@@ -5,15 +5,18 @@ import com.tispace.queryservice.constants.ChatGptConstants;
 import org.junit.jupiter.api.Test;
 
 import java.time.LocalDateTime;
+import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.*;
 
 class PromptBuilderTest {
 	
+	private static final UUID ARTICLE_ID = UUID.fromString("01234567-89ab-7def-0123-456789abcdef");
+	
 	@Test
 	void testBuildSummaryPrompt_WithDescription_IncludesDescription() {
 		ArticleDTO article = ArticleDTO.builder()
-			.id(1L)
+			.id(ARTICLE_ID)
 			.title("Test Article Title")
 			.description("Test Article Description")
 			.author("Test Author")
@@ -35,7 +38,7 @@ class PromptBuilderTest {
 	@Test
 	void testBuildSummaryPrompt_WithoutDescription_ExcludesDescription() {
 		ArticleDTO article = ArticleDTO.builder()
-			.id(1L)
+			.id(ARTICLE_ID)
 			.title("Test Article Title")
 			.description(null)
 			.author("Test Author")
@@ -56,7 +59,7 @@ class PromptBuilderTest {
 	@Test
 	void testBuildSummaryPrompt_WithEmptyDescription_ExcludesDescription() {
 		ArticleDTO article = ArticleDTO.builder()
-			.id(1L)
+			.id(ARTICLE_ID)
 			.title("Test Article Title")
 			.description("")
 			.author("Test Author")
@@ -75,7 +78,7 @@ class PromptBuilderTest {
 	@Test
 	void testBuildSummaryPrompt_ContainsAllRequiredParts() {
 		ArticleDTO article = ArticleDTO.builder()
-			.id(1L)
+			.id(ARTICLE_ID)
 			.title("Test Title")
 			.description("Test Description")
 			.author("Test Author")

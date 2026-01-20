@@ -2,17 +2,17 @@ package com.tispace.queryservice.controller;
 
 import com.tispace.common.dto.ArticleDTO;
 import com.tispace.common.dto.SummaryDTO;
-import com.tispace.common.exception.BusinessException;
 import com.tispace.queryservice.controller.docs.SummaryApiDoc;
 import com.tispace.queryservice.service.ArticleSummaryService;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotNull;
-import jakarta.validation.constraints.Positive;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
+
+import java.util.UUID;
 
 @RestController
 @RequestMapping("/internal/summary")
@@ -28,8 +28,7 @@ public class SummaryController implements SummaryApiDoc {
 	public ResponseEntity<SummaryDTO> generateOrGetSummary(
 		@PathVariable
 		@NotNull(message = "Article ID is required")
-		@Positive(message = "Article ID must be a positive number")
-		Long articleId,
+		UUID articleId,
 		@RequestBody
 		@Valid
 		@NotNull(message = "Article body is required")

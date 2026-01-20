@@ -11,6 +11,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 import java.time.Duration;
+import java.util.UUID;
 
 /**
  * Service for generating and caching article summaries.
@@ -57,7 +58,7 @@ public class ArticleSummaryService {
      * @throws IllegalArgumentException if articleId/article invalid
      * @throws IllegalStateException    if generated summary is empty or single-flight infrastructure is down
      */
-    public SummaryDTO getSummary(Long articleId, ArticleDTO article) {
+    public SummaryDTO getSummary(UUID articleId, ArticleDTO article) {
         validateInput(articleId, article);
 
         log.debug("Fetching summary for articleId={}", articleId);
@@ -81,7 +82,7 @@ public class ArticleSummaryService {
     /**
      * Gets summary with single-flight protection to prevent concurrent generation.
      */
-    private SummaryDTO getSummaryWithSingleFlight(Long articleId, ArticleDTO article, String cacheKey) {
+    private SummaryDTO getSummaryWithSingleFlight(UUID articleId, ArticleDTO article, String cacheKey) {
         String singleFlightKey = ArticleConstants.buildSingleFlightKey(cacheKey);
 
         try {
@@ -109,7 +110,7 @@ public class ArticleSummaryService {
     /**
      * Generates summary using configured SummaryProvider and caches it.
      */
-    private SummaryDTO generateAndCacheSummary(Long articleId, ArticleDTO article, String cacheKey) {
+    private SummaryDTO generateAndCacheSummary(UUID articleId, ArticleDTO article, String cacheKey) {
         final String summaryText;
 
         try {
@@ -159,10 +160,10 @@ public class ArticleSummaryService {
     /**
      * Validates input parameters.
      */
-    private void validateInput(Long articleId, ArticleDTO article) {
+    private void validateInput(UUID articleId, ArticleDTO article) {
 
-        if (articleId == null || articleId <= 0) {
-            throw new IllegalArgumentException("Article ID must be a positive number");
+        if (articleId == null) {
+            throw new IllegalArgumentException("Article ID is required");
         }
         if (article == null) {
             throw new IllegalArgumentException("Article cannot be null");

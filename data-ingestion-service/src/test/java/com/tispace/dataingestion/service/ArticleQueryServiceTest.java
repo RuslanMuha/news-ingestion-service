@@ -20,6 +20,7 @@ import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
+import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
@@ -41,11 +42,12 @@ class ArticleQueryServiceTest {
 	private Article mockArticle;
 	private ArticleDTO mockArticleDTO;
 	private List<Article> mockArticles;
+	private static final UUID ARTICLE_ID = UUID.fromString("01234567-89ab-7def-0123-456789abcdef");
 	
 	@BeforeEach
 	void setUp() {
 		mockArticle = new Article();
-		mockArticle.setId(1L);
+		mockArticle.setId(ARTICLE_ID);
 		mockArticle.setTitle("Test Article");
 		mockArticle.setDescription("Test Description");
 		mockArticle.setAuthor("Test Author");
@@ -53,7 +55,7 @@ class ArticleQueryServiceTest {
 		mockArticle.setCategory("technology");
 		
 		mockArticleDTO = ArticleDTO.builder()
-			.id(1L)
+			.id(ARTICLE_ID)
 			.title("Test Article")
 			.description("Test Description")
 			.author("Test Author")
@@ -112,43 +114,43 @@ class ArticleQueryServiceTest {
 	
 	@Test
 	void testGetArticleById_Exists_ReturnsArticle() {
-		when(articleRepository.findById(1L)).thenReturn(Optional.of(mockArticle));
+		when(articleRepository.findById(ARTICLE_ID)).thenReturn(Optional.of(mockArticle));
 		
-		Article result = articleQueryService.getArticleById(1L);
+		Article result = articleQueryService.getArticleById(ARTICLE_ID);
 		
 		assertNotNull(result);
-		assertEquals(1L, result.getId());
+		assertEquals(ARTICLE_ID, result.getId());
 		assertEquals("Test Article", result.getTitle());
-		verify(articleRepository, times(1)).findById(1L);
+		verify(articleRepository, times(1)).findById(ARTICLE_ID);
 	}
 	
 	@Test
 	void testGetArticleById_NotExists_ThrowsException() {
-		when(articleRepository.findById(1L)).thenReturn(Optional.empty());
+		when(articleRepository.findById(ARTICLE_ID)).thenReturn(Optional.empty());
 		
-		assertThrows(NotFoundException.class, () -> articleQueryService.getArticleById(1L));
-		verify(articleRepository, times(1)).findById(1L);
+		assertThrows(NotFoundException.class, () -> articleQueryService.getArticleById(ARTICLE_ID));
+		verify(articleRepository, times(1)).findById(ARTICLE_ID);
 	}
 	
 	@Test
 	void testGetArticleDTOById_Exists_ReturnsDTO() {
-		when(articleRepository.findById(1L)).thenReturn(Optional.of(mockArticle));
+		when(articleRepository.findById(ARTICLE_ID)).thenReturn(Optional.of(mockArticle));
 		when(articleMapper.toDTO(any(Article.class))).thenReturn(mockArticleDTO);
 		
-		ArticleDTO result = articleQueryService.getArticleDTOById(1L);
+		ArticleDTO result = articleQueryService.getArticleDTOById(ARTICLE_ID);
 		
 		assertNotNull(result);
-		assertEquals(1L, result.getId());
+		assertEquals(ARTICLE_ID, result.getId());
 		assertEquals("Test Article", result.getTitle());
 		verify(articleMapper, times(1)).toDTO(any(Article.class));
 	}
 	
 	@Test
 	void testGetArticleDTOById_NotExists_ThrowsException() {
-		when(articleRepository.findById(1L)).thenReturn(Optional.empty());
+		when(articleRepository.findById(ARTICLE_ID)).thenReturn(Optional.empty());
 		
-		assertThrows(NotFoundException.class, () -> articleQueryService.getArticleDTOById(1L));
-		verify(articleRepository, times(1)).findById(1L);
+		assertThrows(NotFoundException.class, () -> articleQueryService.getArticleDTOById(ARTICLE_ID));
+		verify(articleRepository, times(1)).findById(ARTICLE_ID);
 		verify(articleMapper, never()).toDTO(any(Article.class));
 	}
 	

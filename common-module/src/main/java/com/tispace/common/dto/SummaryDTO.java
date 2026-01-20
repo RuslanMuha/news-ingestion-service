@@ -3,11 +3,12 @@ package com.tispace.common.dto;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
-import jakarta.validation.constraints.Positive;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+
+import java.util.UUID;
 
 @Data
 @Builder
@@ -17,9 +18,8 @@ import lombok.NoArgsConstructor;
 public class SummaryDTO {
 	
 	@NotNull(message = "Article ID is required")
-	@Positive(message = "Article ID must be a positive number")
-	@Schema(description = "Unique identifier of the article", example = "1", requiredMode = Schema.RequiredMode.REQUIRED)
-	private Long articleId;
+	@Schema(description = "Unique identifier of the article", example = "01234567-89ab-7def-0123-456789abcdef", requiredMode = Schema.RequiredMode.REQUIRED)
+	private UUID articleId;
 	
 	@NotBlank(message = "Summary text is required and cannot be empty")
 	@Schema(

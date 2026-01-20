@@ -3,7 +3,6 @@ package com.tispace.common.dto;
 import com.fasterxml.jackson.annotation.JsonFormat;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.Positive;
 import jakarta.validation.constraints.Size;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -11,6 +10,7 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 import java.time.LocalDateTime;
+import java.util.UUID;
 
 @Data
 @Builder
@@ -19,9 +19,9 @@ import java.time.LocalDateTime;
 @Schema(description = "Article data transfer object containing article information")
 public class ArticleDTO {
 	
-	@Positive(message = "Article ID must be a positive number")
-	@Schema(description = "Unique identifier of the article", example = "1")
-	private Long id;
+	@jakarta.validation.constraints.NotNull(message = "Article ID is required")
+	@Schema(description = "Unique identifier of the article", example = "01234567-89ab-7def-0123-456789abcdef")
+	private UUID id;
 	
 	@NotBlank(message = "Article title is required and cannot be empty")
 	@Size(max = 500, message = "Article title cannot exceed 500 characters")

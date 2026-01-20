@@ -10,6 +10,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.time.LocalDateTime;
+import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.*;
@@ -30,7 +31,7 @@ class ArticleSummaryServiceTest {
 	private ArticleSummaryService articleSummaryService;
 	
 	private ArticleDTO mockArticleDTO;
-	private static final Long ARTICLE_ID = 1L;
+	private static final UUID ARTICLE_ID = UUID.fromString("01234567-89ab-7def-0123-456789abcdef");
 	
 	@BeforeEach
 	void setUp() {

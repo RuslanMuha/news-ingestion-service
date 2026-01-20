@@ -12,8 +12,11 @@ import org.springframework.web.client.ResourceAccessException;
 import org.springframework.web.context.request.WebRequest;
 import org.springframework.web.servlet.resource.NoResourceFoundException;
 
+import java.util.UUID;
+
 import static org.junit.jupiter.api.Assertions.*;
-import static org.mockito.Mockito.*;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 class GlobalExceptionHandlerTest {
 	
@@ -29,7 +32,7 @@ class GlobalExceptionHandlerTest {
 	
 	@Test
 	void testHandleNotFoundException_ReturnsNotFound() {
-		NotFoundException ex = new NotFoundException("Article", 1L);
+		NotFoundException ex = new NotFoundException("Article", UUID.randomUUID());
 		
 		ResponseEntity<ErrorResponseDTO> response = exceptionHandler.handleNotFoundException(ex, webRequest);
 		

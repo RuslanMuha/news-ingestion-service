@@ -21,6 +21,8 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.UUID;
+
 @RestController
 @RequestMapping("/api/articles")
 @Slf4j
@@ -65,8 +67,7 @@ public class ArticleController implements ArticleApiDoc {
 	public ResponseEntity<ArticleDTO> getArticleById(
 		@PathVariable
 		@jakarta.validation.constraints.NotNull(message = "Article ID is required")
-		@jakarta.validation.constraints.Positive(message = "Article ID must be a positive number")
-		Long id) {
+		UUID id) {
 		
 		log.debug("Fetching article with id: {}", id);
 		
@@ -80,8 +81,7 @@ public class ArticleController implements ArticleApiDoc {
 	public ResponseEntity<SummaryDTO> getArticleSummary(
 		@PathVariable
 		@jakarta.validation.constraints.NotNull(message = "Article ID is required")
-		@jakarta.validation.constraints.Positive(message = "Article ID must be a positive number")
-		Long id) {
+		UUID id) {
 		
 		log.debug("Fetching summary for article with id: {}", id);
 		
@@ -108,7 +108,7 @@ public class ArticleController implements ArticleApiDoc {
 	 * Fallback method for rate limit exceeded on getArticleById endpoint.
 	 */
 	@SuppressWarnings("unused")
-    private ResponseEntity<ArticleDTO> getArticleByIdRateLimitFallback(Long id, RequestNotPermitted e) {
+    private ResponseEntity<ArticleDTO> getArticleByIdRateLimitFallback(UUID id, RequestNotPermitted e) {
         log.warn("Rate limit exceeded for getArticleById. id={}", id);
         return ResponseEntity.status(429).build();
     }
@@ -117,7 +117,7 @@ public class ArticleController implements ArticleApiDoc {
 	 * Fallback method for rate limit exceeded on getArticleSummary endpoint.
 	 */
 	@SuppressWarnings("unused")
-    private ResponseEntity<SummaryDTO> getArticleSummaryRateLimitFallback(Long id, RequestNotPermitted e) {
+    private ResponseEntity<SummaryDTO> getArticleSummaryRateLimitFallback(UUID id, RequestNotPermitted e) {
         log.warn("Rate limit exceeded for getArticleSummary. id={}", id);
         return ResponseEntity.status(429).build();
     }

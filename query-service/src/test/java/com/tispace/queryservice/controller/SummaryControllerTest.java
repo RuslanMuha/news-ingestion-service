@@ -17,6 +17,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 
 import java.time.LocalDateTime;
+import java.util.UUID;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
@@ -37,6 +38,7 @@ class SummaryControllerTest {
 	
 	private ArticleDTO mockArticleDTO;
 	private ObjectMapper objectMapper;
+	private static final UUID ARTICLE_ID = UUID.fromString("01234567-89ab-7def-0123-456789abcdef");
 	
 	@BeforeEach
 	void setUp() {
@@ -48,7 +50,7 @@ class SummaryControllerTest {
 		objectMapper.registerModule(new JavaTimeModule());
 		
 		mockArticleDTO = ArticleDTO.builder()
-			.id(1L)
+			.id(ARTICLE_ID)
 			.title("Test Article")
 			.description("Test Description")
 			.author("Test Author")
@@ -60,14 +62,14 @@ class SummaryControllerTest {
 	@Test
 	void testGetArticleSummary_Cached() throws Exception {
 		SummaryDTO cachedSummary = SummaryDTO.builder()
-			.articleId(1L)
+			.articleId(ARTICLE_ID)
 			.summary("Cached summary")
 			.cached(true)
 			.build();
 		
-		when(articleSummaryService.getSummary(eq(1L), any(ArticleDTO.class))).thenReturn(cachedSummary);
+		when(articleSummaryService.getSummary(eq(ARTICLE_ID), any(ArticleDTO.class))).thenReturn(cachedSummary);
 		
-		mockMvc.perform(post("/internal/summary/1")
+		mockMvc.perform(post("/internal/summary/" + ARTICLE_ID)
 				.contentType(MediaType.APPLICATION_JSON)
 				.content(objectMapper.writeValueAsString(mockArticleDTO)))
 			.andExpect(status().isOk())
@@ -78,14 +80,14 @@ class SummaryControllerTest {
 	@Test
 	void testGetArticleSummary_NotCached_GeneratesSummary() throws Exception {
 		SummaryDTO generatedSummary = SummaryDTO.builder()
-			.articleId(1L)
+			.articleId(ARTICLE_ID)
 			.summary("Generated summary")
 			.cached(false)
 			.build();
 		
-		when(articleSummaryService.getSummary(eq(1L), any(ArticleDTO.class))).thenReturn(generatedSummary);
+		when(articleSummaryService.getSummary(eq(ARTICLE_ID), any(ArticleDTO.class))).thenReturn(generatedSummary);
 		
-		mockMvc.perform(post("/internal/summary/1")
+		mockMvc.perform(post("/internal/summary/" + ARTICLE_ID)
 				.contentType(MediaType.APPLICATION_JSON)
 				.content(objectMapper.writeValueAsString(mockArticleDTO)))
 			.andExpect(status().isOk())
@@ -97,8 +99,8 @@ class SummaryControllerTest {
 	void testGetArticleSummary_InvalidJson_ReturnsInternalServerError() throws Exception {
 		// Invalid JSON causes deserialization error which is handled by GlobalExceptionHandler
 		// Using malformed JSON structure - unclosed brace
-		String invalidJson = "{\"id\":1,\"title\":\"Test\"";
-		mockMvc.perform(post("/internal/summary/1")
+		String invalidJson = "{\"id\":\"" + ARTICLE_ID + "\",\"title\":\"Test\"";
+		mockMvc.perform(post("/internal/summary/" + ARTICLE_ID)
 				.contentType(MediaType.APPLICATION_JSON)
 				.content(invalidJson))
 			.andExpect(status().isInternalServerError());
@@ -107,17 +109,17 @@ class SummaryControllerTest {
 	@Test
 	void testGetArticleSummary_MissingContentType_ReturnsInternalServerError() throws Exception {
 		// Missing Content-Type causes deserialization error
-		mockMvc.perform(post("/internal/summary/1")
+		mockMvc.perform(post("/internal/summary/" + ARTICLE_ID)
 				.content(objectMapper.writeValueAsString(mockArticleDTO)))
 			.andExpect(status().isInternalServerError());
 	}
 	
 	@Test
 	void testGetArticleSummary_ServiceThrowsException_ReturnsError() throws Exception {
-		when(articleSummaryService.getSummary(eq(1L), any(ArticleDTO.class)))
+		when(articleSummaryService.getSummary(eq(ARTICLE_ID), any(ArticleDTO.class)))
 			.thenThrow(new RuntimeException("Service error"));
 		
-		mockMvc.perform(post("/internal/summary/1")
+		mockMvc.perform(post("/internal/summary/" + ARTICLE_ID)
 				.contentType(MediaType.APPLICATION_JSON)
 				.content(objectMapper.writeValueAsString(mockArticleDTO)))
 			.andExpect(status().isInternalServerError());
@@ -127,20 +129,21 @@ class SummaryControllerTest {
 	void testGetArticleSummary_DifferentArticleId_ReturnsOk() throws Exception {
 		// Controller doesn't validate that article ID in path matches ID in body
 		// It just uses the path ID and passes the article body as-is
+		UUID differentId = UUID.fromString("99999999-9999-7999-9999-999999999999");
 		SummaryDTO summary = SummaryDTO.builder()
-			.articleId(1L)
+			.articleId(ARTICLE_ID)
 			.summary("Summary")
 			.cached(false)
 			.build();
 		
 		ArticleDTO articleWithDifferentId = ArticleDTO.builder()
-			.id(999L)
+			.id(differentId)
 			.title("Test Article")
 			.build();
 		
-		when(articleSummaryService.getSummary(eq(1L), any(ArticleDTO.class))).thenReturn(summary);
+		when(articleSummaryService.getSummary(eq(ARTICLE_ID), any(ArticleDTO.class))).thenReturn(summary);
 		
-		mockMvc.perform(post("/internal/summary/1")
+		mockMvc.perform(post("/internal/summary/" + ARTICLE_ID)
 				.contentType(MediaType.APPLICATION_JSON)
 				.content(objectMapper.writeValueAsString(articleWithDifferentId)))
 			.andExpect(status().isOk());
@@ -150,7 +153,7 @@ class SummaryControllerTest {
 	void testGetArticleSummary_NullArticleDTO_ReturnsInternalServerError() throws Exception {
 		// JSON "null" deserializes to null object, which causes NullPointerException 
 		// when trying to access article.getId() in controller, resulting in 500
-		mockMvc.perform(post("/internal/summary/1")
+		mockMvc.perform(post("/internal/summary/" + ARTICLE_ID)
 				.contentType(MediaType.APPLICATION_JSON)
 				.content("null"))
 			.andExpect(status().isInternalServerError());
@@ -159,7 +162,7 @@ class SummaryControllerTest {
 	@Test
 	void testGetArticleSummary_EmptyBody_ReturnsBadRequest() throws Exception {
 		// Empty body with @NotNull validation fails
-		mockMvc.perform(post("/internal/summary/1")
+		mockMvc.perform(post("/internal/summary/" + ARTICLE_ID)
 				.contentType(MediaType.APPLICATION_JSON)
 				.content("{}"))
 			.andExpect(status().isBadRequest());

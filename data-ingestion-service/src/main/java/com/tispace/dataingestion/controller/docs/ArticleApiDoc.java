@@ -12,10 +12,11 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotNull;
-import jakarta.validation.constraints.Positive;
 import jakarta.validation.constraints.Size;
 import org.springframework.data.domain.Page;
 import org.springframework.http.ResponseEntity;
+
+import java.util.UUID;
 
 @Tag(name = "Articles", description = "Public API for querying news articles and generating AI-powered summaries")
 public interface ArticleApiDoc {
@@ -104,11 +105,10 @@ public interface ArticleApiDoc {
 		@Parameter(
 			description = "Unique identifier of the article",
 			required = true,
-			example = "1"
+			example = "01234567-89ab-7def-0123-456789abcdef"
 		)
 		@NotNull(message = "Article ID is required")
-		@Positive(message = "Article ID must be a positive number")
-		Long id
+		UUID id
 	);
 	
 	@Operation(
@@ -147,11 +147,10 @@ public interface ArticleApiDoc {
 		@Parameter(
 			description = "Unique identifier of the article",
 			required = true,
-			example = "1"
+			example = "01234567-89ab-7def-0123-456789abcdef"
 		)
 		@NotNull(message = "Article ID is required")
-		@Positive(message = "Article ID must be a positive number")
-		Long id
+		UUID id
 	);
 }
 

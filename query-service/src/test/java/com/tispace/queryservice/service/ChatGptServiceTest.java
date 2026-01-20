@@ -17,6 +17,7 @@ import org.springframework.test.util.ReflectionTestUtils;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
@@ -37,6 +38,7 @@ class ChatGptServiceTest {
 	private ChatGptService chatGptService;
 	
 	private ArticleDTO mockArticleDTO;
+	private static final UUID ARTICLE_ID = UUID.fromString("01234567-89ab-7def-0123-456789abcdef");
 	
 	@BeforeEach
 	void setUp() {
@@ -45,7 +47,7 @@ class ChatGptServiceTest {
 		ReflectionTestUtils.setField(chatGptService, "model", "gpt-3.5-turbo");
 		
 		mockArticleDTO = ArticleDTO.builder()
-			.id(1L)
+			.id(ARTICLE_ID)
 			.title("Test Article Title")
 			.description("Test Article Description")
 			.author("Test Author")
@@ -111,8 +113,9 @@ class ChatGptServiceTest {
 	
 	@Test
 	void testGenerateSummary_WithoutDescription_StillGeneratesSummary() {
+		UUID articleId2 = UUID.fromString("11234567-89ab-7def-0123-456789abcdef");
 		ArticleDTO articleWithoutDescription = ArticleDTO.builder()
-			.id(2L)
+			.id(articleId2)
 			.title("Test Article")
 			.description(null)
 			.author("Test Author")
@@ -214,8 +217,9 @@ class ChatGptServiceTest {
 	
 	@Test
 	void testGenerateSummary_WithEmptyTitle_StillGeneratesSummary() {
+		UUID articleId3 = UUID.fromString("21234567-89ab-7def-0123-456789abcdef");
 		ArticleDTO articleWithEmptyTitle = ArticleDTO.builder()
-			.id(3L)
+			.id(articleId3)
 			.title("")
 			.description("Test Description")
 			.author("Test Author")
@@ -237,8 +241,9 @@ class ChatGptServiceTest {
 	
 	@Test
 	void testGenerateSummary_WithEmptyDescription_ExcludesDescription() {
+		UUID articleId4 = UUID.fromString("31234567-89ab-7def-0123-456789abcdef");
 		ArticleDTO articleWithEmptyDescription = ArticleDTO.builder()
-			.id(4L)
+			.id(articleId4)
 			.title("Test Article")
 			.description("")
 			.author("Test Author")

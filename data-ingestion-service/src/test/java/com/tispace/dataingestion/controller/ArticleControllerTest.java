@@ -25,6 +25,7 @@ import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.UUID;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
@@ -52,6 +53,7 @@ class ArticleControllerTest {
 	private ArticleController articleController;
 	
 	private ArticleDTO mockArticleDTO;
+	private static final UUID ARTICLE_ID = UUID.fromString("01234567-89ab-7def-0123-456789abcdef");
 	
 	@BeforeEach
 	void setUp() {
@@ -70,7 +72,7 @@ class ArticleControllerTest {
 			.build();
 		
 		mockArticleDTO = ArticleDTO.builder()
-			.id(1L)
+			.id(ARTICLE_ID)
 			.title("Test Article")
 			.description("Test Description")
 			.author("Test Author")
@@ -115,21 +117,21 @@ class ArticleControllerTest {
 	
 	@Test
 	void testGetArticleById_Success() throws Exception {
-		when(articleQueryService.getArticleDTOById(1L)).thenReturn(mockArticleDTO);
+		when(articleQueryService.getArticleDTOById(ARTICLE_ID)).thenReturn(mockArticleDTO);
 		
-		mockMvc.perform(get("/api/articles/1")
+		mockMvc.perform(get("/api/articles/" + ARTICLE_ID)
 				.contentType(MediaType.APPLICATION_JSON))
 			.andExpect(status().isOk())
-			.andExpect(jsonPath("$.id").value(1))
+			.andExpect(jsonPath("$.id").value(ARTICLE_ID.toString()))
 			.andExpect(jsonPath("$.title").value("Test Article"));
 	}
 	
 	@Test
 	void testGetArticleById_NotFound() throws Exception {
-		when(articleQueryService.getArticleDTOById(1L))
-			.thenThrow(new NotFoundException("Article", 1L));
+		when(articleQueryService.getArticleDTOById(ARTICLE_ID))
+			.thenThrow(new NotFoundException("Article", ARTICLE_ID));
 		
-		mockMvc.perform(get("/api/articles/1")
+		mockMvc.perform(get("/api/articles/" + ARTICLE_ID)
 				.contentType(MediaType.APPLICATION_JSON))
 			.andExpect(status().isNotFound());
 	}
@@ -181,10 +183,10 @@ class ArticleControllerTest {
 	
 	@Test
 	void testGetArticleById_ServiceThrowsException_ReturnsError() throws Exception {
-		when(articleQueryService.getArticleDTOById(1L))
+		when(articleQueryService.getArticleDTOById(ARTICLE_ID))
 			.thenThrow(new RuntimeException("Service error"));
 		
-		mockMvc.perform(get("/api/articles/1")
+		mockMvc.perform(get("/api/articles/" + ARTICLE_ID)
 				.contentType(MediaType.APPLICATION_JSON))
 			.andExpect(status().isInternalServerError());
 	}
@@ -225,10 +227,11 @@ class ArticleControllerTest {
 	
 	@Test
 	void testGetArticleById_InvalidId_HandlesGracefully() throws Exception {
-		when(articleQueryService.getArticleDTOById(999L))
-			.thenThrow(new NotFoundException("Article", 999L));
+		UUID invalidId = UUID.fromString("99999999-9999-7999-9999-999999999999");
+		when(articleQueryService.getArticleDTOById(invalidId))
+			.thenThrow(new NotFoundException("Article", invalidId));
 		
-		mockMvc.perform(get("/api/articles/999")
+		mockMvc.perform(get("/api/articles/" + invalidId)
 				.contentType(MediaType.APPLICATION_JSON))
 			.andExpect(status().isNotFound());
 	}
