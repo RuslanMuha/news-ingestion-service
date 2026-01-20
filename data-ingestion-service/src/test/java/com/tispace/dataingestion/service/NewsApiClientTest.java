@@ -1,20 +1,13 @@
 package com.tispace.dataingestion.service;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.tispace.common.entity.Article;
 import com.tispace.common.exception.ExternalApiException;
-import com.tispace.common.validation.ArticleValidator;
-import com.tispace.dataingestion.adapter.NewsApiAdapter;
-import com.tispace.dataingestion.mapper.NewsApiArticleMapper;
-import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
+import com.tispace.common.exception.SerializationException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.http.HttpStatus;
-import org.springframework.http.ResponseEntity;
-import org.springframework.web.client.RestTemplate;
 
 import java.time.LocalDateTime;
 import java.util.ArrayList;
@@ -23,61 +16,36 @@ import java.util.List;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
-import static org.mockito.Mockito.lenient;
 
 @ExtendWith(MockitoExtension.class)
 class NewsApiClientTest {
 	
 	@Mock
-	private RestTemplate restTemplate;
+	private NewsApiClientCore core;
 	
 	@Mock
-	private ObjectMapper objectMapper;
-	
-	@Mock
-	private NewsApiArticleMapper newsApiArticleMapper;
-	
-	@Mock
-	private ArticleValidator articleValidator;
-	
-	private SimpleMeterRegistry meterRegistry;
+	private NewsApiClientMetrics metrics;
 	
 	private NewsApiClient newsApiClient;
 	
-	private static final String NEWS_API_URL = "https://newsapi.org/v2/everything";
-	private static final String API_KEY = "test-api-key";
-	
 	@BeforeEach
 	void setUp() {
-		meterRegistry = new SimpleMeterRegistry();
-		
-		newsApiClient = new NewsApiClient(
-			restTemplate,
-			objectMapper,
-			newsApiArticleMapper,
-			articleValidator,
-			meterRegistry,
-			NEWS_API_URL,
-			API_KEY
-		);
-		
-		// Mock articleValidator to return true by default (lenient to avoid unnecessary stubbing errors)
-		lenient().when(articleValidator.isValid(any(Article.class))).thenReturn(true);
+		newsApiClient = new NewsApiClient(core, metrics);
 	}
 	
 	@Test
 	void testFetchArticles_Success_ReturnsArticles() throws Exception {
 		String keyword = "technology";
 		String category = "technology";
-		String jsonResponse = createMockJsonResponse();
-		NewsApiAdapter adapter = createMockAdapter();
 		Article mockArticle = createMockArticle(category);
+		List<Article> expectedArticles = List.of(mockArticle);
 		
-		ResponseEntity<String> responseEntity = new ResponseEntity<>(jsonResponse, HttpStatus.OK);
-		
-		when(restTemplate.getForEntity(anyString(), eq(String.class))).thenReturn(responseEntity);
-		when(objectMapper.readValue(jsonResponse, NewsApiAdapter.class)).thenReturn(adapter);
-		when(newsApiArticleMapper.toArticle(any(NewsApiAdapter.ArticleResponse.class))).thenReturn(mockArticle);
+		when(core.fetchArticles(keyword, category)).thenReturn(expectedArticles);
+		doNothing().when(metrics).onRequest();
+		when(metrics.recordLatency(any())).thenAnswer(invocation -> {
+			java.util.concurrent.Callable<List<Article>> callable = invocation.getArgument(0);
+			return callable.call();
+		});
 		
 		List<Article> result = newsApiClient.fetchArticles(keyword, category);
 		
@@ -86,140 +54,141 @@ class NewsApiClientTest {
 		assertEquals("Test Article", result.get(0).getTitle());
 		assertEquals(category, result.get(0).getCategory());
 		
-		verify(restTemplate, times(1)).getForEntity(anyString(), eq(String.class));
-		verify(objectMapper, times(1)).readValue(jsonResponse, NewsApiAdapter.class);
-		verify(newsApiArticleMapper, times(1)).toArticle(any(NewsApiAdapter.ArticleResponse.class));
-		verify(newsApiArticleMapper, times(1)).updateCategory(any(Article.class), eq(category));
-		verify(articleValidator, times(1)).isValid(any(Article.class));
+		verify(metrics, times(1)).onRequest();
+		verify(metrics, times(1)).recordLatency(any());
+		verify(metrics, never()).onError();
+		verify(metrics, never()).onFallback();
+		verify(core, times(1)).fetchArticles(keyword, category);
 	}
 	
 	@Test
-	void testFetchArticles_NonOkStatus_ThrowsException() {
+	void testFetchArticles_ExternalApiException_PropagatesException() throws Exception {
 		String keyword = "technology";
 		String category = "technology";
+		ExternalApiException exception = new ExternalApiException("API error");
 		
-		ResponseEntity<String> responseEntity = new ResponseEntity<>("", HttpStatus.BAD_REQUEST);
-		
-		when(restTemplate.getForEntity(anyString(), eq(String.class))).thenReturn(responseEntity);
+		doNothing().when(metrics).onRequest();
+		doNothing().when(metrics).onError();
+		when(metrics.recordLatency(any())).thenAnswer(invocation -> {
+			java.util.concurrent.Callable<List<Article>> callable = invocation.getArgument(0);
+			return callable.call();
+		});
+		when(core.fetchArticles(keyword, category)).thenThrow(exception);
 		
 		assertThrows(ExternalApiException.class, () -> newsApiClient.fetchArticles(keyword, category));
+		
+		verify(metrics, times(1)).onRequest();
+		verify(metrics, times(1)).onError();
+		verify(metrics, times(1)).recordLatency(any());
+		verify(core, times(1)).fetchArticles(keyword, category);
 	}
 	
 	@Test
-	void testFetchArticles_NonOkStatusInAdapter_ThrowsException() throws Exception {
+	void testFetchArticles_SerializationException_PropagatesException() throws Exception {
 		String keyword = "technology";
 		String category = "technology";
-		String jsonResponse = "{\"status\":\"error\"}";
-		NewsApiAdapter adapter = new NewsApiAdapter();
-		adapter.setStatus("error");
+		SerializationException exception = new SerializationException("Serialization error");
 		
-		ResponseEntity<String> responseEntity = new ResponseEntity<>(jsonResponse, HttpStatus.OK);
+		doNothing().when(metrics).onRequest();
+		doNothing().when(metrics).onError();
+		when(metrics.recordLatency(any())).thenAnswer(invocation -> {
+			java.util.concurrent.Callable<List<Article>> callable = invocation.getArgument(0);
+			return callable.call();
+		});
+		when(core.fetchArticles(keyword, category)).thenThrow(exception);
 		
-		when(restTemplate.getForEntity(anyString(), eq(String.class))).thenReturn(responseEntity);
-		when(objectMapper.readValue(jsonResponse, NewsApiAdapter.class)).thenReturn(adapter);
+		assertThrows(SerializationException.class, () -> newsApiClient.fetchArticles(keyword, category));
 		
-		assertThrows(ExternalApiException.class, () -> newsApiClient.fetchArticles(keyword, category));
+		verify(metrics, times(1)).onRequest();
+		verify(metrics, times(1)).onError();
+		verify(metrics, times(1)).recordLatency(any());
+		verify(core, times(1)).fetchArticles(keyword, category);
 	}
 	
 	@Test
-	void testFetchArticles_Exception_ThrowsException() {
+	void testFetchArticles_UnexpectedException_WrapsInExternalApiException() throws Exception {
 		String keyword = "technology";
 		String category = "technology";
+		RuntimeException exception = new RuntimeException("Unexpected error");
 		
-		when(restTemplate.getForEntity(anyString(), eq(String.class)))
-			.thenThrow(new RuntimeException("Connection error"));
+		doNothing().when(metrics).onRequest();
+		doNothing().when(metrics).onError();
+		when(metrics.recordLatency(any())).thenAnswer(invocation -> {
+			java.util.concurrent.Callable<List<Article>> callable = invocation.getArgument(0);
+			return callable.call();
+		});
+		when(core.fetchArticles(keyword, category)).thenThrow(exception);
 		
-		// After refactoring, exceptions are not wrapped in ExternalApiException
-		// They are propagated as-is and handled by GlobalExceptionHandler
-		assertThrows(RuntimeException.class, () -> newsApiClient.fetchArticles(keyword, category));
+		ExternalApiException thrown = assertThrows(ExternalApiException.class, 
+			() -> newsApiClient.fetchArticles(keyword, category));
+		
+		assertEquals("Unexpected error fetching articles from NewsAPI", thrown.getMessage());
+		assertEquals(exception, thrown.getCause());
+		
+		verify(metrics, times(1)).onRequest();
+		verify(metrics, times(1)).onError();
+		verify(metrics, times(1)).recordLatency(any());
+		verify(core, times(1)).fetchArticles(keyword, category);
 	}
 	
 	@Test
 	void testFetchArticles_WithNullKeyword_StillReturnsArticles() throws Exception {
 		String category = "technology";
-		String jsonResponse = createMockJsonResponse();
-		NewsApiAdapter adapter = createMockAdapter();
 		Article mockArticle = createMockArticle(category);
+		List<Article> expectedArticles = List.of(mockArticle);
 		
-		ResponseEntity<String> responseEntity = new ResponseEntity<>(jsonResponse, HttpStatus.OK);
-		
-		when(restTemplate.getForEntity(anyString(), eq(String.class))).thenReturn(responseEntity);
-		when(objectMapper.readValue(jsonResponse, NewsApiAdapter.class)).thenReturn(adapter);
-		when(newsApiArticleMapper.toArticle(any(NewsApiAdapter.ArticleResponse.class))).thenReturn(mockArticle);
+		doNothing().when(metrics).onRequest();
+		when(metrics.recordLatency(any())).thenAnswer(invocation -> {
+			java.util.concurrent.Callable<List<Article>> callable = invocation.getArgument(0);
+			return callable.call();
+		});
+		when(core.fetchArticles(null, category)).thenReturn(expectedArticles);
 		
 		List<Article> result = newsApiClient.fetchArticles(null, category);
 		
 		assertNotNull(result);
 		assertFalse(result.isEmpty());
-		verify(restTemplate, times(1)).getForEntity(anyString(), eq(String.class));
-		verify(newsApiArticleMapper, times(1)).toArticle(any(NewsApiAdapter.ArticleResponse.class));
+		verify(core, times(1)).fetchArticles(null, category);
 	}
 	
 	@Test
-	void testFetchArticles_WithNullCategory_ReturnsArticlesWithDefaultCategory() throws Exception {
+	void testFetchArticles_WithNullCategory_ReturnsArticles() throws Exception {
 		String keyword = "technology";
-		String jsonResponse = createMockJsonResponse();
-		NewsApiAdapter adapter = createMockAdapter();
 		Article mockArticle = createMockArticle(null);
+		List<Article> expectedArticles = List.of(mockArticle);
 		
-		ResponseEntity<String> responseEntity = new ResponseEntity<>(jsonResponse, HttpStatus.OK);
-		
-		when(restTemplate.getForEntity(anyString(), eq(String.class))).thenReturn(responseEntity);
-		when(objectMapper.readValue(jsonResponse, NewsApiAdapter.class)).thenReturn(adapter);
-		when(newsApiArticleMapper.toArticle(any(NewsApiAdapter.ArticleResponse.class))).thenReturn(mockArticle);
+		doNothing().when(metrics).onRequest();
+		when(metrics.recordLatency(any())).thenAnswer(invocation -> {
+			java.util.concurrent.Callable<List<Article>> callable = invocation.getArgument(0);
+			return callable.call();
+		});
+		when(core.fetchArticles(keyword, null)).thenReturn(expectedArticles);
 		
 		List<Article> result = newsApiClient.fetchArticles(keyword, null);
 		
 		assertNotNull(result);
 		assertFalse(result.isEmpty());
-		verify(newsApiArticleMapper, times(1)).updateCategory(any(Article.class), isNull());
+		verify(core, times(1)).fetchArticles(keyword, null);
 	}
 	
 	@Test
 	void testFetchArticles_EmptyArticlesList_ReturnsEmptyList() throws Exception {
 		String keyword = "technology";
 		String category = "technology";
-		String jsonResponse = "{\"status\":\"ok\",\"articles\":[]}";
-		NewsApiAdapter adapter = new NewsApiAdapter();
-		adapter.setStatus("ok");
-		adapter.setArticles(new ArrayList<>());
+		List<Article> emptyList = new ArrayList<>();
 		
-		ResponseEntity<String> responseEntity = new ResponseEntity<>(jsonResponse, HttpStatus.OK);
-		
-		when(restTemplate.getForEntity(anyString(), eq(String.class))).thenReturn(responseEntity);
-		when(objectMapper.readValue(jsonResponse, NewsApiAdapter.class)).thenReturn(adapter);
+		doNothing().when(metrics).onRequest();
+		when(metrics.recordLatency(any())).thenAnswer(invocation -> {
+			java.util.concurrent.Callable<List<Article>> callable = invocation.getArgument(0);
+			return callable.call();
+		});
+		when(core.fetchArticles(keyword, category)).thenReturn(emptyList);
 		
 		List<Article> result = newsApiClient.fetchArticles(keyword, category);
 		
 		assertNotNull(result);
 		assertTrue(result.isEmpty());
-	}
-	
-	@Test
-	void testFetchArticles_ArticleWithoutTitle_ExcludesFromResult() throws Exception {
-		String keyword = "technology";
-		String category = "technology";
-		NewsApiAdapter adapter = createMockAdapter();
-		adapter.getArticles().get(0).setTitle(null); // Remove title
-		Article mockArticle = new Article();
-		mockArticle.setTitle(null); // Article without title
-		mockArticle.setDescription("Test Description");
-		
-		String jsonResponse = "{\"status\":\"ok\",\"articles\":[]}";
-		ResponseEntity<String> responseEntity = new ResponseEntity<>(jsonResponse, HttpStatus.OK);
-		
-		when(restTemplate.getForEntity(anyString(), eq(String.class))).thenReturn(responseEntity);
-		when(objectMapper.readValue(jsonResponse, NewsApiAdapter.class)).thenReturn(adapter);
-		when(newsApiArticleMapper.toArticle(any(NewsApiAdapter.ArticleResponse.class))).thenReturn(mockArticle);
-		when(articleValidator.isValid(mockArticle)).thenReturn(false); // Invalid article
-		
-		List<Article> result = newsApiClient.fetchArticles(keyword, category);
-		
-		assertNotNull(result);
-		// Article without title should be excluded
-		assertTrue(result.isEmpty());
-		verify(restTemplate, times(1)).getForEntity(anyString(), eq(String.class));
-		verify(newsApiArticleMapper, times(1)).toArticle(any(NewsApiAdapter.ArticleResponse.class));
+		verify(core, times(1)).fetchArticles(keyword, category);
 	}
 	
 	@Test
@@ -229,230 +198,6 @@ class NewsApiClientTest {
 		assertEquals("NewsAPI", apiName);
 	}
 	
-	@Test
-	void testFetchArticles_EmptyResponseBody_ReturnsEmptyList() {
-		String keyword = "technology";
-		String category = "technology";
-		
-		ResponseEntity<String> responseEntity = new ResponseEntity<>("", HttpStatus.OK);
-		
-		when(restTemplate.getForEntity(anyString(), eq(String.class))).thenReturn(responseEntity);
-		
-		List<Article> result = newsApiClient.fetchArticles(keyword, category);
-		
-		assertNotNull(result);
-		assertTrue(result.isEmpty());
-		verify(restTemplate, times(1)).getForEntity(anyString(), eq(String.class));
-		// objectMapper.readValue is never called when response body is empty
-	}
-	
-	@Test
-	void testFetchArticles_NullResponseBody_ReturnsEmptyList() {
-		String keyword = "technology";
-		String category = "technology";
-		
-		ResponseEntity<String> responseEntity = new ResponseEntity<>(null, HttpStatus.OK);
-		
-		when(restTemplate.getForEntity(anyString(), eq(String.class))).thenReturn(responseEntity);
-		
-		List<Article> result = newsApiClient.fetchArticles(keyword, category);
-		
-		assertNotNull(result);
-		assertTrue(result.isEmpty());
-		verify(restTemplate, times(1)).getForEntity(anyString(), eq(String.class));
-		// objectMapper.readValue is never called when response body is null
-	}
-	
-	@Test
-	void testFetchArticles_JsonProcessingException_ThrowsSerializationException() throws Exception {
-		String keyword = "technology";
-		String category = "technology";
-		String jsonResponse = "invalid json";
-		
-		ResponseEntity<String> responseEntity = new ResponseEntity<>(jsonResponse, HttpStatus.OK);
-		
-		when(restTemplate.getForEntity(anyString(), eq(String.class))).thenReturn(responseEntity);
-		when(objectMapper.readValue(jsonResponse, NewsApiAdapter.class))
-			.thenThrow(new com.fasterxml.jackson.databind.JsonMappingException(null, "Parse error"));
-		
-		assertThrows(com.tispace.common.exception.SerializationException.class, 
-			() -> newsApiClient.fetchArticles(keyword, category));
-	}
-	
-	@Test
-	void testFetchArticles_NullAdapter_ThrowsException() throws Exception {
-		String keyword = "technology";
-		String category = "technology";
-		String jsonResponse = "{\"status\":\"ok\"}";
-		
-		ResponseEntity<String> responseEntity = new ResponseEntity<>(jsonResponse, HttpStatus.OK);
-		
-		when(restTemplate.getForEntity(anyString(), eq(String.class))).thenReturn(responseEntity);
-		when(objectMapper.readValue(jsonResponse, NewsApiAdapter.class)).thenReturn(null);
-		
-		// The implementation tries to access adapter.getStatus() which causes NullPointerException
-		// This NPE is caught and wrapped in ExternalApiException by the catch block
-		assertThrows(ExternalApiException.class, 
-			() -> newsApiClient.fetchArticles(keyword, category));
-	}
-	
-	@Test
-	void testFetchArticles_NullArticlesList_ReturnsEmptyList() throws Exception {
-		String keyword = "technology";
-		String category = "technology";
-		String jsonResponse = "{\"status\":\"ok\"}";
-		NewsApiAdapter adapter = new NewsApiAdapter();
-		adapter.setStatus("ok");
-		adapter.setArticles(null);
-		
-		ResponseEntity<String> responseEntity = new ResponseEntity<>(jsonResponse, HttpStatus.OK);
-		
-		when(restTemplate.getForEntity(anyString(), eq(String.class))).thenReturn(responseEntity);
-		when(objectMapper.readValue(jsonResponse, NewsApiAdapter.class)).thenReturn(adapter);
-		
-		List<Article> result = newsApiClient.fetchArticles(keyword, category);
-		
-		assertNotNull(result);
-		assertTrue(result.isEmpty());
-	}
-	
-	@Test
-	void testFetchArticles_NullArticleResponse_SkipsNull() throws Exception {
-		String keyword = "technology";
-		String category = "technology";
-		String jsonResponse = createMockJsonResponse();
-		NewsApiAdapter adapter = createMockAdapter();
-		adapter.getArticles().add(null); // Add null article
-		Article mockArticle = createMockArticle(category);
-		
-		ResponseEntity<String> responseEntity = new ResponseEntity<>(jsonResponse, HttpStatus.OK);
-		
-		when(restTemplate.getForEntity(anyString(), eq(String.class))).thenReturn(responseEntity);
-		when(objectMapper.readValue(jsonResponse, NewsApiAdapter.class)).thenReturn(adapter);
-		when(newsApiArticleMapper.toArticle(any(NewsApiAdapter.ArticleResponse.class))).thenReturn(mockArticle);
-		
-		List<Article> result = newsApiClient.fetchArticles(keyword, category);
-		
-		assertNotNull(result);
-		assertEquals(1, result.size()); // Only valid article, null skipped
-	}
-	
-	@Test
-	void testFetchArticles_MappingException_SkipsArticle() throws Exception {
-		String keyword = "technology";
-		String category = "technology";
-		String jsonResponse = createMockJsonResponse();
-		NewsApiAdapter adapter = createMockAdapter();
-		
-		ResponseEntity<String> responseEntity = new ResponseEntity<>(jsonResponse, HttpStatus.OK);
-		
-		when(restTemplate.getForEntity(anyString(), eq(String.class))).thenReturn(responseEntity);
-		when(objectMapper.readValue(jsonResponse, NewsApiAdapter.class)).thenReturn(adapter);
-		when(newsApiArticleMapper.toArticle(any(NewsApiAdapter.ArticleResponse.class)))
-			.thenThrow(new RuntimeException("Mapping error"));
-		
-		List<Article> result = newsApiClient.fetchArticles(keyword, category);
-		
-		assertNotNull(result);
-		assertTrue(result.isEmpty()); // Article with mapping error skipped
-	}
-	
-	@Test
-	void testFetchArticles_MapperReturnsNull_SkipsArticle() throws Exception {
-		String keyword = "technology";
-		String category = "technology";
-		String jsonResponse = createMockJsonResponse();
-		NewsApiAdapter adapter = createMockAdapter();
-		
-		ResponseEntity<String> responseEntity = new ResponseEntity<>(jsonResponse, HttpStatus.OK);
-		
-		when(restTemplate.getForEntity(anyString(), eq(String.class))).thenReturn(responseEntity);
-		when(objectMapper.readValue(jsonResponse, NewsApiAdapter.class)).thenReturn(adapter);
-		when(newsApiArticleMapper.toArticle(any(NewsApiAdapter.ArticleResponse.class))).thenReturn(null);
-		
-		List<Article> result = newsApiClient.fetchArticles(keyword, category);
-		
-		assertNotNull(result);
-		assertTrue(result.isEmpty()); // Null article skipped
-	}
-	
-	@Test
-	void testFetchArticles_ArticleWithEmptyTitle_SkipsArticle() throws Exception {
-		String keyword = "technology";
-		String category = "technology";
-		String jsonResponse = createMockJsonResponse();
-		NewsApiAdapter adapter = createMockAdapter();
-		Article mockArticle = new Article();
-		mockArticle.setTitle(""); // Empty title
-		mockArticle.setDescription("Test Description");
-		
-		ResponseEntity<String> responseEntity = new ResponseEntity<>(jsonResponse, HttpStatus.OK);
-		
-		when(restTemplate.getForEntity(anyString(), eq(String.class))).thenReturn(responseEntity);
-		when(objectMapper.readValue(jsonResponse, NewsApiAdapter.class)).thenReturn(adapter);
-		when(newsApiArticleMapper.toArticle(any(NewsApiAdapter.ArticleResponse.class))).thenReturn(mockArticle);
-		when(articleValidator.isValid(mockArticle)).thenReturn(false); // Invalid article
-		
-		List<Article> result = newsApiClient.fetchArticles(keyword, category);
-		
-		assertNotNull(result);
-		assertTrue(result.isEmpty()); // Article with empty title skipped
-	}
-	
-	@Test
-	void testFetchArticles_ArticleWithWhitespaceTitle_IncludesArticle() throws Exception {
-		// Note: ArticleValidator may accept whitespace title, so whitespace title is treated as valid
-		String keyword = "technology";
-		String category = "technology";
-		String jsonResponse = createMockJsonResponse();
-		NewsApiAdapter adapter = createMockAdapter();
-		Article mockArticle = new Article();
-		mockArticle.setTitle("   "); // Whitespace title
-		mockArticle.setDescription("Test Description");
-		
-		ResponseEntity<String> responseEntity = new ResponseEntity<>(jsonResponse, HttpStatus.OK);
-		
-		when(restTemplate.getForEntity(anyString(), eq(String.class))).thenReturn(responseEntity);
-		when(objectMapper.readValue(jsonResponse, NewsApiAdapter.class)).thenReturn(adapter);
-		when(newsApiArticleMapper.toArticle(any(NewsApiAdapter.ArticleResponse.class))).thenReturn(mockArticle);
-		when(articleValidator.isValid(mockArticle)).thenReturn(true); // Valid article
-		
-		List<Article> result = newsApiClient.fetchArticles(keyword, category);
-		
-		assertNotNull(result);
-		// ArticleValidator accepts it, so whitespace title is kept
-		assertFalse(result.isEmpty());
-		assertEquals("   ", result.get(0).getTitle());
-	}
-	
-	@Test
-	void testFetchArticles_MultipleArticles_SomeValidSomeInvalid_ReturnsOnlyValid() throws Exception {
-		String keyword = "technology";
-		String category = "technology";
-		String jsonResponse = createMockJsonResponse();
-		NewsApiAdapter adapter = createMockAdapter();
-		
-		// Add another article response
-		NewsApiAdapter.ArticleResponse articleResponse2 = new NewsApiAdapter.ArticleResponse();
-		articleResponse2.setTitle("Valid Article 2");
-		adapter.getArticles().add(articleResponse2);
-		
-		Article validArticle1 = createMockArticle(category);
-		Article validArticle2 = createMockArticle(category);
-		validArticle2.setTitle("Valid Article 2");
-		
-		ResponseEntity<String> responseEntity = new ResponseEntity<>(jsonResponse, HttpStatus.OK);
-		
-		when(restTemplate.getForEntity(anyString(), eq(String.class))).thenReturn(responseEntity);
-		when(objectMapper.readValue(jsonResponse, NewsApiAdapter.class)).thenReturn(adapter);
-		when(newsApiArticleMapper.toArticle(adapter.getArticles().get(0))).thenReturn(validArticle1);
-		when(newsApiArticleMapper.toArticle(adapter.getArticles().get(1))).thenReturn(validArticle2);
-		
-		List<Article> result = newsApiClient.fetchArticles(keyword, category);
-		
-		assertNotNull(result);
-		assertEquals(2, result.size());
-	}
 	
 	@Test
 	void testFetchArticlesFallback_ReturnsEmptyList() {
@@ -460,32 +205,16 @@ class NewsApiClientTest {
 		String category = "technology";
 		Exception cause = new RuntimeException("Service unavailable");
 		
-		// Fallback now returns empty list instead of throwing exception
+		doNothing().when(metrics).onFallback();
+		doNothing().when(metrics).onError();
+		
+		// Fallback returns empty list
 		List<Article> result = newsApiClient.fetchArticlesFallback(keyword, category, cause);
 		
 		assertNotNull(result);
 		assertTrue(result.isEmpty());
-	}
-	
-	private String createMockJsonResponse() {
-		return "{\"status\":\"ok\",\"articles\":[{\"title\":\"Test Article\",\"description\":\"Test Description\",\"author\":\"Test Author\",\"publishedAt\":\"2025-01-18T10:00:00Z\"}]}";
-	}
-	
-	private NewsApiAdapter createMockAdapter() {
-		NewsApiAdapter adapter = new NewsApiAdapter();
-		adapter.setStatus("ok");
-		
-		NewsApiAdapter.ArticleResponse articleResponse = new NewsApiAdapter.ArticleResponse();
-		articleResponse.setTitle("Test Article");
-		articleResponse.setDescription("Test Description");
-		articleResponse.setAuthor("Test Author");
-		articleResponse.setPublishedAt("2025-01-18T10:00:00Z");
-		
-		List<NewsApiAdapter.ArticleResponse> articles = new ArrayList<>();
-		articles.add(articleResponse);
-		adapter.setArticles(articles);
-		
-		return adapter;
+		verify(metrics, times(1)).onFallback();
+		verify(metrics, times(1)).onError();
 	}
 	
 	private Article createMockArticle(String category) {

@@ -1,10 +1,6 @@
-package com.tispace.queryservice.service;
+package com.tispace.queryservice.cache;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.tispace.queryservice.cache.CacheResult;
-import com.tispace.queryservice.cache.CacheService;
-import io.micrometer.core.instrument.MeterRegistry;
-import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -30,7 +26,8 @@ class CacheServiceTest {
 	@Mock
 	private ObjectMapper objectMapper;
 	
-	private MeterRegistry meterRegistry;
+	@Mock
+	private CacheMetrics cacheMetrics;
 	
 	@Mock
 	private ValueOperations<String, String> valueOperations;
@@ -39,14 +36,26 @@ class CacheServiceTest {
 	
 	@BeforeEach
 	void setUp() {
-		// Use real SimpleMeterRegistry instead of mock to avoid initialization issues
-		meterRegistry = new SimpleMeterRegistry();
-		
-		// Create CacheService with real MeterRegistry
-		cacheService = new CacheService(redisTemplate, objectMapper, meterRegistry);
+		// Create CacheService with mocked CacheMetrics
+		cacheService = new CacheService(redisTemplate, objectMapper, cacheMetrics);
 		
 		// Set up mock that's used in most tests, but make it lenient for tests that don't need it
 		lenient().when(redisTemplate.opsForValue()).thenReturn(valueOperations);
+		
+		// Mock CacheMetrics methods to do nothing by default
+		lenient().when(cacheMetrics.recordGet(any())).thenAnswer(invocation -> {
+			CacheMetrics.TimerCallable<?> callable = invocation.getArgument(0);
+			return callable.call();
+		});
+		lenient().doAnswer(invocation -> {
+			Runnable runnable = invocation.getArgument(0);
+			runnable.run();
+			return null;
+		}).when(cacheMetrics).recordPut(any());
+		lenient().doNothing().when(cacheMetrics).hit();
+		lenient().doNothing().when(cacheMetrics).miss();
+		lenient().doNothing().when(cacheMetrics).error();
+		lenient().doNothing().when(cacheMetrics).unavailable();
 	}
 	
 	@Test
@@ -66,6 +75,10 @@ class CacheServiceTest {
 		assertEquals(1L, value.getId());
 		assertEquals("test", value.getName());
 		verify(valueOperations, times(1)).get(key);
+		verify(cacheMetrics, times(1)).recordGet(any());
+		verify(cacheMetrics, times(1)).hit();
+		verify(cacheMetrics, never()).miss();
+		verify(cacheMetrics, never()).error();
 	}
 	
 	@Test
@@ -79,6 +92,10 @@ class CacheServiceTest {
 		assertNotNull(result);
 		assertTrue(result instanceof CacheResult.Miss);
 		verify(valueOperations, times(1)).get(key);
+		verify(cacheMetrics, times(1)).recordGet(any());
+		verify(cacheMetrics, times(1)).miss();
+		verify(cacheMetrics, never()).hit();
+		verify(cacheMetrics, never()).error();
 	}
 	
 	@Test
@@ -95,6 +112,8 @@ class CacheServiceTest {
 		
 		verify(objectMapper, times(1)).writeValueAsString(value);
 		verify(valueOperations, times(1)).set(eq(key), eq(jsonValue), ttlCaptor.capture(), eq(TimeUnit.SECONDS));
+		verify(cacheMetrics, times(1)).recordPut(any());
+		verify(cacheMetrics, never()).error();
 		
 		// TTL has jitter applied (±10%), so we check that it's in the expected range (3240-3960)
 		Long actualTtl = ttlCaptor.getValue();
@@ -126,6 +145,10 @@ class CacheServiceTest {
 		assertNotNull(result);
 		assertTrue(result instanceof CacheResult.Error); // Exceptions are handled and return error
 		verify(valueOperations, times(1)).get(key);
+		verify(cacheMetrics, times(1)).recordGet(any());
+		verify(cacheMetrics, times(1)).error(); // Exception is caught in getFromCache, so error() is called once
+		verify(cacheMetrics, never()).hit();
+		verify(cacheMetrics, never()).miss();
 	}
 	
 	@Test
@@ -142,6 +165,8 @@ class CacheServiceTest {
 		
 		verify(objectMapper, times(1)).writeValueAsString(value);
 		verify(valueOperations, never()).set(anyString(), anyString(), anyLong(), any(TimeUnit.class));
+		verify(cacheMetrics, times(1)).recordPut(any());
+		verify(cacheMetrics, times(1)).error(); // Exception is caught in putToCache, so error() is called once
 	}
 	
 	@Test
@@ -156,6 +181,8 @@ class CacheServiceTest {
 		assertNotNull(result);
 		assertTrue(result instanceof CacheResult.Error); // Exceptions are handled and return error
 		verify(valueOperations, times(1)).get(key);
+		verify(cacheMetrics, times(1)).recordGet(any());
+		verify(cacheMetrics, times(1)).error(); // Exception is caught in getFromCache, so error() is called once
 	}
 	
 	@Test
@@ -177,6 +204,8 @@ class CacheServiceTest {
 		
 		verify(objectMapper, times(1)).writeValueAsString(value);
 		verify(valueOperations, times(1)).set(eq(key), eq(jsonValue), anyLong(), eq(TimeUnit.SECONDS));
+		verify(cacheMetrics, times(1)).recordPut(any());
+		verify(cacheMetrics, times(1)).error(); // Exception is caught in putToCache, so error() is called once
 		
 		// TTL has jitter applied (±10%), so we check that it's in the expected range (3240-3960)
 		Long actualTtl = ttlCaptor.getValue();
@@ -195,6 +224,7 @@ class CacheServiceTest {
 		cacheService.delete(key);
 		
 		verify(redisTemplate, times(1)).delete(key);
+		verify(cacheMetrics, times(1)).error();
 	}
 	
 	@Test
@@ -211,6 +241,7 @@ class CacheServiceTest {
 		assertNotNull(result);
 		assertTrue(result instanceof CacheResult.Hit);
 		verify(valueOperations, times(1)).get(key);
+		verify(cacheMetrics, times(1)).hit();
 	}
 	
 	@Test
@@ -224,6 +255,7 @@ class CacheServiceTest {
 		// Should not call objectMapper or valueOperations when TTL is invalid
 		verify(objectMapper, never()).writeValueAsString(any());
 		verify(valueOperations, never()).set(anyString(), anyString(), anyLong(), any(TimeUnit.class));
+		verify(cacheMetrics, never()).recordPut(any());
 	}
 	
 	@Test
@@ -237,6 +269,7 @@ class CacheServiceTest {
 		// Should not call objectMapper or valueOperations when TTL is invalid
 		verify(objectMapper, never()).writeValueAsString(any());
 		verify(valueOperations, never()).set(anyString(), anyString(), anyLong(), any(TimeUnit.class));
+		verify(cacheMetrics, never()).recordPut(any());
 	}
 	
 	@Test
@@ -247,6 +280,18 @@ class CacheServiceTest {
 		assertNotNull(result);
 		assertTrue(result instanceof CacheResult.Miss);
 		verify(valueOperations, never()).get(anyString());
+		verify(cacheMetrics, never()).recordGet(any());
+	}
+	
+	@Test
+	void testGet_BlankKey_ReturnsMiss() throws Exception {
+		// CacheService handles blank key gracefully and returns CacheResult.miss()
+		CacheResult<TestObject> result = cacheService.get("   ", TestObject.class);
+		
+		assertNotNull(result);
+		assertTrue(result instanceof CacheResult.Miss);
+		verify(valueOperations, never()).get(anyString());
+		verify(cacheMetrics, never()).recordGet(any());
 	}
 	
 	@Test
@@ -258,6 +303,19 @@ class CacheServiceTest {
 		
 		verify(objectMapper, never()).writeValueAsString(any());
 		verify(valueOperations, never()).set(anyString(), anyString(), anyLong(), any(TimeUnit.class));
+		verify(cacheMetrics, never()).recordPut(any());
+	}
+	
+	@Test
+	void testPut_BlankKey_FailsSilently() throws Exception {
+		// CacheService handles blank key gracefully and fails silently
+		TestObject value = new TestObject(1L, "test");
+		
+		cacheService.put("   ", value, 3600);
+		
+		verify(objectMapper, never()).writeValueAsString(any());
+		verify(valueOperations, never()).set(anyString(), anyString(), anyLong(), any(TimeUnit.class));
+		verify(cacheMetrics, never()).recordPut(any());
 	}
 	
 	@Test
@@ -270,6 +328,63 @@ class CacheServiceTest {
 		// Should not call objectMapper or valueOperations when value is null
 		verify(objectMapper, never()).writeValueAsString(any());
 		verify(valueOperations, never()).set(anyString(), anyString(), anyLong(), any(TimeUnit.class));
+		verify(cacheMetrics, never()).recordPut(any());
+	}
+	
+	@Test
+	void testDelete_NullKey_FailsSilently() {
+		cacheService.delete(null);
+		verify(redisTemplate, never()).delete(anyString());
+	}
+	
+	@Test
+	void testDelete_BlankKey_FailsSilently() {
+		cacheService.delete("   ");
+		verify(redisTemplate, never()).delete(anyString());
+	}
+	
+	@Test
+	void testGetFallback_ReturnsError() {
+		String key = "test:key";
+		Throwable cause = new RuntimeException("Circuit breaker open");
+		
+		CacheResult<TestObject> result = cacheService.getFallback(key, TestObject.class, cause);
+		
+		assertNotNull(result);
+		assertTrue(result instanceof CacheResult.Error);
+		assertEquals(cause, ((CacheResult.Error<TestObject>) result).cause());
+		verify(cacheMetrics, times(1)).unavailable();
+	}
+	
+	@Test
+	void testPutFallback_DoesNothing() {
+		String key = "test:key";
+		TestObject value = new TestObject(1L, "test");
+		long ttlSeconds = 3600;
+		Throwable cause = new RuntimeException("Circuit breaker open");
+		
+		// Should not throw exception
+		cacheService.putFallback(key, value, ttlSeconds, cause);
+		
+		verify(cacheMetrics, times(1)).unavailable();
+		try {
+			verify(objectMapper, never()).writeValueAsString(any());
+		} catch (Exception e) {
+			// This won't happen with never(), but needed for compilation
+		}
+		verify(redisTemplate, never()).opsForValue();
+	}
+	
+	@Test
+	void testDeleteFallback_DoesNothing() {
+		String key = "test:key";
+		Throwable cause = new RuntimeException("Circuit breaker open");
+		
+		// Should not throw exception
+		cacheService.deleteFallback(key, cause);
+		
+		verify(cacheMetrics, times(1)).unavailable();
+		verify(redisTemplate, never()).delete(anyString());
 	}
 	
 	// Helper class for testing
