@@ -22,6 +22,11 @@ openai:
   model: ${OPENAI_MODEL:gpt-3.5-turbo}
   timeout: ${OPENAI_TIMEOUT:60}
 
+security:
+  internal:
+    header: X-Internal-Token
+    token: ${INTERNAL_API_TOKEN:}
+
 cache:
   summary:
     ttl-hours: 24

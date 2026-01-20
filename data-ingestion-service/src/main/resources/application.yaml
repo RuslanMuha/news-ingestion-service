@@ -46,6 +46,9 @@ services:
   query-service:
     url: ${QUERY_SERVICE_URL:http://query-service:8082}
 
+query-service:
+  internal-token: ${INTERNAL_API_TOKEN:}
+
 scheduler:
   enabled: true
   cron: 0 0 */6 * * *

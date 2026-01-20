@@ -25,8 +25,8 @@ public class QueryServiceClient {
 	
 	@Value("${services.query-service.url:http://query-service:8082}")
 	private String queryServiceUrl;
-	
-	private final RestTemplate restTemplate;
+
+    private final RestTemplate queryServiceRestTemplate;
 	
 	private static final String SUMMARY_ENDPOINT = "/internal/summary";
 	
@@ -37,7 +37,7 @@ public class QueryServiceClient {
 		String url = String.format("%s%s/%d", queryServiceUrl, SUMMARY_ENDPOINT, articleId);
 		
 		HttpEntity<ArticleDTO> request = new HttpEntity<>(article);
-		ResponseEntity<SummaryDTO> response = restTemplate.exchange(
+		ResponseEntity<SummaryDTO> response = queryServiceRestTemplate.exchange(
 			url,
 			HttpMethod.POST,
 			request,

@@ -48,6 +48,7 @@ services:
       DB_PASSWORD: postgres
       NEWS_API_KEY: ${NEWS_API_KEY:-}
       QUERY_SERVICE_URL: http://query-service:8082
+      INTERNAL_API_TOKEN: ${INTERNAL_API_TOKEN:-}
       SPRING_PROFILES_ACTIVE: docker
     ports:
       - "8081:8081"
@@ -75,6 +76,7 @@ services:
       REDIS_PORT: 6379
       OPENAI_API_KEY: ${OPENAI_API_KEY:-}
       OPENAI_MODEL: ${OPENAI_MODEL:-gpt-4o-mini}
+      INTERNAL_API_TOKEN: ${INTERNAL_API_TOKEN:-}
       SPRING_PROFILES_ACTIVE: docker
     ports:
       - "8082:8082"
