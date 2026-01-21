@@ -1,4 +1,4 @@
-package com.tispace.common.entity;
+package com.tispace.dataingestion.domain.entity;
 
 import com.github.f4b6a3.uuid.UuidCreator;
 import jakarta.persistence.*;
@@ -49,5 +49,4 @@ public class Article extends BaseEntity {
 	@Column(name = "category", length = 100)
 	private String category;
 }
-
 

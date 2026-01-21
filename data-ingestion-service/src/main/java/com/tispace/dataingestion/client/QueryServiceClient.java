@@ -1,7 +1,7 @@
 package com.tispace.dataingestion.client;
 
-import com.tispace.common.dto.ArticleDTO;
-import com.tispace.common.dto.SummaryDTO;
+import com.tispace.common.contract.ArticleDTO;
+import com.tispace.common.contract.SummaryDTO;
 import com.tispace.common.exception.ExternalApiException;
 import io.github.resilience4j.bulkhead.annotation.Bulkhead;
 import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;

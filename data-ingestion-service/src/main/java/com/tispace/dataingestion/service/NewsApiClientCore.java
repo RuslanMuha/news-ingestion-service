@@ -2,10 +2,10 @@ package com.tispace.dataingestion.service;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.tispace.common.entity.Article;
+import com.tispace.dataingestion.domain.entity.Article;
 import com.tispace.common.exception.ExternalApiException;
 import com.tispace.common.exception.SerializationException;
-import com.tispace.common.validation.ArticleValidator;
+import com.tispace.dataingestion.domain.validation.ArticleValidator;
 import com.tispace.dataingestion.adapter.NewsApiAdapter;
 import com.tispace.dataingestion.constants.NewsApiConstants;
 import com.tispace.dataingestion.mapper.NewsApiArticleMapper;

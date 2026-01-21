@@ -1,13 +1,18 @@
-package com.tispace.common.exception;
+package com.tispace.queryservice.web.exception;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
-import com.tispace.common.dto.ErrorResponseDTO;
+import com.tispace.common.contract.ErrorResponseDTO;
+import com.tispace.common.exception.BusinessException;
+import com.tispace.common.exception.CacheException;
+import com.tispace.common.exception.ExternalApiException;
+import com.tispace.common.exception.NotFoundException;
+import com.tispace.common.exception.RateLimitExceededException;
+import com.tispace.common.exception.SerializationException;
 import com.tispace.common.util.SensitiveDataFilter;
 import org.apache.commons.lang3.StringUtils;
 import io.swagger.v3.oas.annotations.Hidden;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.core.annotation.Order;
-import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.HttpStatusCode;
 import org.springframework.http.ResponseEntity;
@@ -21,8 +26,8 @@ import org.springframework.web.servlet.resource.NoResourceFoundException;
 
 import java.time.LocalDateTime;
 
-@RestControllerAdvice
-@Order(1) // Lower priority to let SpringDoc handle its own exceptions first
+@RestControllerAdvice(basePackages = "com.tispace.queryservice.controller") // Only apply to our controllers, not SpringDoc
+@Order(org.springframework.core.Ordered.LOWEST_PRECEDENCE) // Lowest priority to let SpringDoc handle its own exceptions first
 @Hidden // Exclude from SpringDoc/OpenAPI scanning to avoid compatibility issues
 @Slf4j
 public class GlobalExceptionHandler {
@@ -46,9 +51,6 @@ public class GlobalExceptionHandler {
 	private static final String ERROR_CODE_NOT_FOUND = "NOT_FOUND";
 	private static final String ERROR_CODE_EXTERNAL_API_ERROR = "EXTERNAL_API_ERROR";
 	private static final String ERROR_CODE_CONNECTION_ERROR = "CONNECTION_ERROR";
-	private static final String ERROR_CODE_DATA_INTEGRITY_ERROR = "DATA_INTEGRITY_ERROR";
-	private static final String ERROR_CODE_DUPLICATE_ENTRY = "DUPLICATE_ENTRY";
-	private static final String ERROR_CODE_REFERENTIAL_INTEGRITY_ERROR = "REFERENTIAL_INTEGRITY_ERROR";
 	private static final String ERROR_CODE_SERIALIZATION_ERROR = "SERIALIZATION_ERROR";
 	private static final String ERROR_CODE_CACHE_UNAVAILABLE = "CACHE_UNAVAILABLE";
 	private static final String ERROR_CODE_RATE_LIMIT_EXCEEDED = "RATE_LIMIT_EXCEEDED";
@@ -56,12 +58,6 @@ public class GlobalExceptionHandler {
 	private static final String ERROR_CODE_VALIDATION_ERROR = "VALIDATION_ERROR";
 	private static final String ERROR_CODE_INVALID_ARGUMENT = "INVALID_ARGUMENT";
 	private static final String ERROR_CODE_INTERNAL_ERROR = "INTERNAL_ERROR";
-	
-	// Message patterns for data integrity violations
-	private static final String PATTERN_DUPLICATE = "duplicate";
-	private static final String PATTERN_UNIQUE_CONSTRAINT = "unique constraint";
-	private static final String PATTERN_FOREIGN_KEY = "foreign key";
-	private static final String PATTERN_REFERENTIAL_INTEGRITY = "referential integrity";
 	
 	// Connection error patterns
 	private static final String PATTERN_TIMEOUT = "timeout";
@@ -117,29 +113,6 @@ public class GlobalExceptionHandler {
 		log.error("Resource access error: {}", sanitizedMessage);
 		return buildErrorResponse(ERROR_CODE_CONNECTION_ERROR, message, HttpStatus.SERVICE_UNAVAILABLE, request);
 	}
-	
-	@ExceptionHandler(DataIntegrityViolationException.class)
-	public ResponseEntity<ErrorResponseDTO> handleDataIntegrityViolationException(DataIntegrityViolationException ex, WebRequest request) {
-		String message = "Data integrity violation occurred";
-		String errorCode = ERROR_CODE_DATA_INTEGRITY_ERROR;
-		
-		// Check if it's a duplicate key violation
-		String exceptionMessage = ex.getMessage();
-		if (exceptionMessage != null) {
-			String lowerMessage = exceptionMessage.toLowerCase();
-			if (lowerMessage.contains(PATTERN_DUPLICATE) || lowerMessage.contains(PATTERN_UNIQUE_CONSTRAINT)) {
-				message = "Duplicate entry detected. The resource already exists.";
-				errorCode = ERROR_CODE_DUPLICATE_ENTRY;
-			} else if (lowerMessage.contains(PATTERN_FOREIGN_KEY) || lowerMessage.contains(PATTERN_REFERENTIAL_INTEGRITY)) {
-				message = "Referential integrity violation. Related resource does not exist.";
-				errorCode = ERROR_CODE_REFERENTIAL_INTEGRITY_ERROR;
-			}
-		}
-		
-		log.error("Data integrity violation: {}", exceptionMessage, ex);
-		return buildErrorResponse(errorCode, message, HttpStatus.CONFLICT, request);
-	}
-	
 	
 	@ExceptionHandler(JsonProcessingException.class)
 	public ResponseEntity<ErrorResponseDTO> handleJsonProcessingException(JsonProcessingException ex, WebRequest request) {
@@ -217,22 +190,6 @@ public class GlobalExceptionHandler {
 	
 	@ExceptionHandler(Exception.class)
 	public ResponseEntity<ErrorResponseDTO> handleGenericException(Exception ex, WebRequest request) {
-		String path = extractPath(request);
-		
-		// Ignore SpringDoc/OpenAPI paths - let SpringDoc handle its own errors
-		// With @Hidden annotation, SpringDoc shouldn't scan this handler, but we add this check as a safety measure
-		if (isSpringDocPath(path)) {
-			log.debug("SpringDoc path detected: {}, not handling exception", path);
-			// Return a simple response without logging to avoid interfering with SpringDoc
-			return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-				.body(ErrorResponseDTO.builder()
-					.errorCode(ERROR_CODE_INTERNAL_ERROR)
-					.message(UNEXPECTED_ERROR_MESSAGE)
-					.timestamp(LocalDateTime.now())
-					.path(path)
-					.build());
-		}
-		
 		// Don't expose full exception details to client for security
 		String errorMessage = truncateMessage(ex.getMessage());
 		

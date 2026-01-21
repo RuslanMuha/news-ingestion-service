@@ -1,6 +1,6 @@
 package com.tispace.queryservice.service;
 
-import com.tispace.common.dto.ArticleDTO;
+import com.tispace.common.contract.ArticleDTO;
 import org.apache.commons.lang3.StringUtils;
 import com.tispace.queryservice.constants.ChatGptConstants;
 import lombok.NoArgsConstructor;

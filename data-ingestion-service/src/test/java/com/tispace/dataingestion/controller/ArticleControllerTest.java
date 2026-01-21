@@ -1,8 +1,8 @@
 package com.tispace.dataingestion.controller;
 
-import com.tispace.common.dto.ArticleDTO;
+import com.tispace.common.contract.ArticleDTO;
 import com.tispace.common.exception.NotFoundException;
-import com.tispace.common.validation.SortStringParser;
+import com.tispace.dataingestion.application.validation.SortStringParser;
 import com.tispace.dataingestion.client.QueryServiceClient;
 import com.tispace.dataingestion.service.ArticleQueryService;
 import org.junit.jupiter.api.BeforeEach;
@@ -64,7 +64,7 @@ class ArticleControllerTest {
 		lenient().when(sortStringParser.parse(any(String.class))).thenReturn(Sort.by(Sort.Direction.DESC, "publishedAt"));
 		
 		mockMvc = MockMvcBuilders.standaloneSetup(articleController)
-			.setControllerAdvice(new com.tispace.common.exception.GlobalExceptionHandler())
+			.setControllerAdvice(new com.tispace.dataingestion.web.exception.GlobalExceptionHandler())
 			.setCustomArgumentResolvers(
 				pageableResolver,
 				new SortHandlerMethodArgumentResolver()

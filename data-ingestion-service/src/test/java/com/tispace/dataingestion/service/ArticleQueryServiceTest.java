@@ -1,10 +1,10 @@
 package com.tispace.dataingestion.service;
 
-import com.tispace.common.dto.ArticleDTO;
-import com.tispace.common.entity.Article;
+import com.tispace.common.contract.ArticleDTO;
+import com.tispace.dataingestion.domain.entity.Article;
 import com.tispace.common.exception.NotFoundException;
-import com.tispace.common.mapper.ArticleMapper;
-import com.tispace.common.repository.ArticleRepository;
+import com.tispace.dataingestion.application.mapper.ArticleMapper;
+import com.tispace.dataingestion.infrastructure.repository.ArticleRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;

@@ -1,4 +1,4 @@
-package com.tispace.common.dto;
+package com.tispace.common.contract;
 
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotBlank;
@@ -35,5 +35,4 @@ public class SummaryDTO {
 	)
 	private Boolean cached;
 }
-
 

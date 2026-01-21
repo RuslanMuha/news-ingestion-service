@@ -1,7 +1,7 @@
-package com.tispace.common.validation;
+package com.tispace.dataingestion.domain.validation;
 
-import com.tispace.common.dto.ArticleDTO;
-import com.tispace.common.entity.Article;
+import com.tispace.common.contract.ArticleDTO;
+import com.tispace.dataingestion.domain.entity.Article;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.stereotype.Component;
@@ -58,6 +58,4 @@ public class ArticleValidator {
         }
     }
 }
-
-
 

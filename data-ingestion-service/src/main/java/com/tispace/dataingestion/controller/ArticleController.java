@@ -1,8 +1,8 @@
 package com.tispace.dataingestion.controller;
 
-import com.tispace.common.dto.ArticleDTO;
-import com.tispace.common.dto.SummaryDTO;
-import com.tispace.common.validation.SortStringParser;
+import com.tispace.common.contract.ArticleDTO;
+import com.tispace.common.contract.SummaryDTO;
+import com.tispace.dataingestion.application.validation.SortStringParser;
 import com.tispace.dataingestion.client.QueryServiceClient;
 import com.tispace.dataingestion.controller.docs.ArticleApiDoc;
 import com.tispace.dataingestion.service.ArticleQueryService;

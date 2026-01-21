@@ -1,4 +1,4 @@
-package com.tispace.common.config;
+package com.tispace.dataingestion.config;
 
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
 import org.springframework.context.annotation.Configuration;
@@ -9,5 +9,4 @@ import org.springframework.data.jpa.repository.config.EnableJpaAuditing;
 @EnableJpaAuditing
 public class JpaAuditingConfig {
 }
-
 

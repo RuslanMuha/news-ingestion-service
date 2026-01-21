@@ -5,9 +5,8 @@ import com.theokanning.openai.completion.chat.ChatCompletionResult;
 import com.theokanning.openai.completion.chat.ChatMessage;
 import com.theokanning.openai.completion.chat.ChatMessageRole;
 import com.theokanning.openai.service.OpenAiService;
-import com.tispace.common.dto.ArticleDTO;
+import com.tispace.common.contract.ArticleDTO;
 import com.tispace.common.exception.ExternalApiException;
-import com.tispace.common.validation.ArticleValidator;
 import com.tispace.queryservice.constants.ChatGptConstants;
 import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
 import io.github.resilience4j.retry.annotation.Retry;
@@ -48,14 +47,12 @@ import java.util.UUID;
 public class ChatGptService {
 	
 	private final OpenAiService openAiService;
-    private final ArticleValidator articleValidator;
 	
 	@Value("${openai.model:gpt-3.5-turbo}")
 	private String model;
 	
-	public ChatGptService(ObjectProvider<OpenAiService> openAiServiceProvider, ArticleValidator articleValidator) {
+	public ChatGptService(ObjectProvider<OpenAiService> openAiServiceProvider) {
 		this.openAiService = openAiServiceProvider.getIfAvailable(); // Can be null if OpenAI API key is not configured
-        this.articleValidator = articleValidator;
     }
 	
 	/**
@@ -71,7 +68,9 @@ public class ChatGptService {
 	@CircuitBreaker(name = "openAiApi", fallbackMethod = "generateSummaryFallback")
 	@Retry(name = "openAiApi")
 	public String generateSummary(ArticleDTO article) {
-        articleValidator.validateInput(article);
+        if (article == null) {
+            throw new IllegalArgumentException("Article cannot be null");
+        }
 		
 		if (openAiService == null) {
 			log.warn("OpenAI API key is not configured. Returning mock summary for article id: {}", article.getId());
