@@ -34,3 +34,4 @@ public class ChatGptSummaryProvider implements SummaryProvider {
 }
 
 
+

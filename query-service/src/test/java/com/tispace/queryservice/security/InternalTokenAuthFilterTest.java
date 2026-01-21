@@ -60,7 +60,6 @@ class InternalTokenAuthFilterTest {
         var filter = new InternalTokenAuthFilter(properties);
         when(request.getRequestURI()).thenReturn("/internal/test");
 
-        // token отсутствует (ошибка конфигурации)
         when(properties.getToken()).thenReturn("   ");
 
         var sw = new StringWriter();
@@ -85,7 +84,6 @@ class InternalTokenAuthFilterTest {
         when(properties.getToken()).thenReturn("EXPECTED_TOKEN");
         when(properties.getHeader()).thenReturn("X-Internal-Token");
 
-        // header отсутствует
         when(request.getHeader("X-Internal-Token")).thenReturn(null);
 
         var sw = new StringWriter();
@@ -110,7 +108,6 @@ class InternalTokenAuthFilterTest {
         when(properties.getToken()).thenReturn("EXPECTED_TOKEN");
         when(properties.getHeader()).thenReturn("X-Internal-Token");
 
-        // header есть, но токен неверный
         when(request.getHeader("X-Internal-Token")).thenReturn("WRONG_TOKEN");
 
         var sw = new StringWriter();
@@ -135,14 +132,12 @@ class InternalTokenAuthFilterTest {
         when(properties.getToken()).thenReturn("EXPECTED_TOKEN");
         when(properties.getHeader()).thenReturn("X-Internal-Token");
 
-        // токен валидный
         when(request.getHeader("X-Internal-Token")).thenReturn("EXPECTED_TOKEN");
 
         filter.doFilterInternal(request, response, filterChain);
 
         verify(filterChain).doFilter(request, response);
 
-        // в успешном кейсе фильтр не пишет в response
         verify(response, never()).setStatus(anyInt());
         verify(response, never()).setContentType(anyString());
         verify(response, never()).getWriter();

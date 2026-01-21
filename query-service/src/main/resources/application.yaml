@@ -53,7 +53,7 @@ resilience4j:
         waitDurationInOpenState: 30s
         failureRateThreshold: 50
         slowCallRateThreshold: 100
-        slowCallDurationThreshold: 2s  # Если Redis медленнее 2s - считаем slow call
+        slowCallDurationThreshold: 2s
         recordExceptions:
           - org.springframework.data.redis.RedisConnectionFailureException
           - io.lettuce.core.RedisException

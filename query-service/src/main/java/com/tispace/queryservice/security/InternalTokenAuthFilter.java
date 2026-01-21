@@ -41,13 +41,13 @@ public class InternalTokenAuthFilter extends OncePerRequestFilter {
 
         String requestPath = request.getRequestURI();
 
-        // фильтр нужен только для /internal/**
+
         if (!requestPath.startsWith("/internal/")) {
             filterChain.doFilter(request, response);
             return;
         }
 
-        // если токен не настроен — это ошибка конфигурации, лучше сразу 500
+
         if (!StringUtils.hasText(properties.getToken())) {
             log.error("Internal token is NOT configured! Internal API is blocked.");
             response.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
