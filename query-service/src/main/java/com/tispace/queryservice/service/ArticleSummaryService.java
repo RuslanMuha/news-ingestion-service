@@ -62,7 +62,9 @@ public class ArticleSummaryService {
         }
 
         if (cached instanceof CacheResult.Error<SummaryDTO>(Throwable cause)) {
-            throw new IllegalStateException("Cache unavailable, refusing to generate summary to protect provider", cause);
+            log.warn("Cache unavailable for articleId={}, proceeding without cache to maintain service availability", articleId, cause);
+            // Treat as cache miss and continue - cache is optional, service should work without it
+            return getSummaryWithSingleFlight(articleId, article, cacheKey);
         }
 
         return getSummaryWithSingleFlight(articleId, article, cacheKey);
@@ -83,7 +85,8 @@ public class ArticleSummaryService {
                 }
 
                 if (cachedAfterLock instanceof CacheResult.Error<SummaryDTO>(Throwable cause)) {
-                    throw new IllegalStateException("Cache unavailable, refusing to generate summary to protect provider", cause);
+                    log.warn("Cache unavailable after acquiring lock for articleId={}, proceeding without cache to maintain service availability", articleId, cause);
+                    // Treat as cache miss and continue - cache is optional, service should work without it
                 }
 
                 return generateAndCacheSummary(articleId, article, cacheKey);
