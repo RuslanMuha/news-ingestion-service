@@ -1,6 +1,6 @@
 package com.tispace.queryservice.service;
 
-import com.tispace.common.dto.ArticleDTO;
+import com.tispace.common.contract.ArticleDTO;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;

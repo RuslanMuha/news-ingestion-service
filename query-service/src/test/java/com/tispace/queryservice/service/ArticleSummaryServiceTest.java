@@ -1,7 +1,7 @@
 package com.tispace.queryservice.service;
 
-import com.tispace.common.dto.ArticleDTO;
-import com.tispace.common.dto.SummaryDTO;
+import com.tispace.common.contract.ArticleDTO;
+import com.tispace.common.contract.SummaryDTO;
 import com.tispace.queryservice.cache.CacheResult;
 import com.tispace.queryservice.cache.CacheService;
 import org.junit.jupiter.api.BeforeEach;

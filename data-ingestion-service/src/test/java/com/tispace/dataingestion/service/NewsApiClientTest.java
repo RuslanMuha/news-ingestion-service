@@ -1,6 +1,6 @@
 package com.tispace.dataingestion.service;
 
-import com.tispace.common.entity.Article;
+import com.tispace.dataingestion.domain.entity.Article;
 import com.tispace.common.exception.ExternalApiException;
 import com.tispace.common.exception.SerializationException;
 import org.junit.jupiter.api.BeforeEach;

@@ -1,6 +1,6 @@
 package com.tispace.dataingestion.mapper;
 
-import com.tispace.common.entity.Article;
+import com.tispace.dataingestion.domain.entity.Article;
 import com.tispace.dataingestion.adapter.NewsApiAdapter;
 import org.mapstruct.Mapper;
 import org.mapstruct.Mapping;

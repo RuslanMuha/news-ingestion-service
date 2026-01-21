@@ -1,7 +1,7 @@
 package com.tispace.queryservice.controller.docs;
 
-import com.tispace.common.dto.ArticleDTO;
-import com.tispace.common.dto.SummaryDTO;
+import com.tispace.common.contract.ArticleDTO;
+import com.tispace.common.contract.SummaryDTO;
 import io.swagger.v3.oas.annotations.Hidden;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotNull;

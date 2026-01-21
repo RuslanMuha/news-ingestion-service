@@ -1,7 +1,7 @@
 package com.tispace.dataingestion.service;
 
-import com.tispace.common.entity.Article;
-import com.tispace.common.repository.ArticleRepository;
+import com.tispace.dataingestion.domain.entity.Article;
+import com.tispace.dataingestion.infrastructure.repository.ArticleRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;

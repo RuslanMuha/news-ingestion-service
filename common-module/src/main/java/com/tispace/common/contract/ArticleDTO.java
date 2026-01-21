@@ -1,4 +1,4 @@
-package com.tispace.common.dto;
+package com.tispace.common.contract;
 
 import com.fasterxml.jackson.annotation.JsonFormat;
 import io.swagger.v3.oas.annotations.media.Schema;
@@ -52,5 +52,4 @@ public class ArticleDTO {
 	@Schema(description = "Timestamp when the article was last updated", example = "2025-01-18T12:00:00.000")
 	private LocalDateTime updatedAt;
 }
-
 

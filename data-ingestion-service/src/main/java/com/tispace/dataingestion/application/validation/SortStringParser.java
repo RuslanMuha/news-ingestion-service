@@ -1,4 +1,4 @@
-package com.tispace.common.validation;
+package com.tispace.dataingestion.application.validation;
 
 import com.tispace.common.exception.BusinessException;
 import org.springframework.data.domain.Sort;
@@ -109,6 +109,4 @@ public class SortStringParser {
      */
     private record ParsedSort(String field, String direction) {}
 }
-
-
 

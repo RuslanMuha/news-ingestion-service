@@ -73,6 +73,15 @@
 				<artifactId>uuid-creator</artifactId>
 				<version>${uuid-creator.version}</version>
 			</dependency>
+			<!-- Swagger annotations version managed here for compilation (scope: provided in common-module) -->
+			<!-- Runtime version is controlled by springdoc-openapi-starter-webmvc-ui (2.8.9) -->
+			<!-- SpringDoc OpenAPI 2.8.9 uses swagger-annotations 2.2.22+ -->
+			<!-- We use 2.2.22 for compilation, but SpringDoc will provide its version at runtime -->
+			<dependency>
+				<groupId>io.swagger.core.v3</groupId>
+				<artifactId>swagger-annotations</artifactId>
+				<version>2.2.22</version>
+			</dependency>
 		</dependencies>
 	</dependencyManagement>
 

@@ -1,6 +1,6 @@
 package com.tispace.dataingestion.service;
 
-import com.tispace.common.entity.Article;
+import com.tispace.dataingestion.domain.entity.Article;
 import org.apache.commons.lang3.StringUtils;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;

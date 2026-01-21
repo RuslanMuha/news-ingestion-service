@@ -1,4 +1,4 @@
-package com.tispace.common.dto;
+package com.tispace.common.contract;
 
 import com.fasterxml.jackson.annotation.JsonFormat;
 import io.swagger.v3.oas.annotations.media.Schema;
@@ -29,5 +29,4 @@ public class ErrorResponseDTO {
 	@Schema(description = "API path where the error occurred", example = "/api/articles/1")
 	private String path;
 }
-
 

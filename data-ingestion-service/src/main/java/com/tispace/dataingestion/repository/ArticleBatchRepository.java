@@ -1,6 +1,6 @@
 package com.tispace.dataingestion.repository;
 
-import com.tispace.common.entity.Article;
+import com.tispace.dataingestion.domain.entity.Article;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.jdbc.core.BatchPreparedStatementSetter;

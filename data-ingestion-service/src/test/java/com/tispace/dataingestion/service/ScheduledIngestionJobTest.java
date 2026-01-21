@@ -1,7 +1,7 @@
 package com.tispace.dataingestion.service;
 
-import com.tispace.common.entity.Article;
-import com.tispace.common.repository.ArticleRepository;
+import com.tispace.dataingestion.domain.entity.Article;
+import com.tispace.dataingestion.infrastructure.repository.ArticleRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;

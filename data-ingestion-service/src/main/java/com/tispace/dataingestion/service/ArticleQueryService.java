@@ -1,10 +1,10 @@
 package com.tispace.dataingestion.service;
 
-import com.tispace.common.dto.ArticleDTO;
-import com.tispace.common.entity.Article;
+import com.tispace.common.contract.ArticleDTO;
+import com.tispace.dataingestion.domain.entity.Article;
 import com.tispace.common.exception.NotFoundException;
-import com.tispace.common.mapper.ArticleMapper;
-import com.tispace.common.repository.ArticleRepository;
+import com.tispace.dataingestion.application.mapper.ArticleMapper;
+import com.tispace.dataingestion.infrastructure.repository.ArticleRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;

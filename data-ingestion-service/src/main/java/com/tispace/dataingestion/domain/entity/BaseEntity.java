@@ -1,4 +1,4 @@
-package com.tispace.common.entity;
+package com.tispace.dataingestion.domain.entity;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.EntityListeners;
@@ -25,6 +25,4 @@ public abstract class BaseEntity {
 	@Column(name = "updated_at")
 	private LocalDateTime updatedAt;
 }
-
-
 

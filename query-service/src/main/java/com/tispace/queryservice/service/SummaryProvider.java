@@ -1,6 +1,6 @@
 package com.tispace.queryservice.service;
 
-import com.tispace.common.dto.ArticleDTO;
+import com.tispace.common.contract.ArticleDTO;
 
 /**
  * Strategy interface for summary generation providers.

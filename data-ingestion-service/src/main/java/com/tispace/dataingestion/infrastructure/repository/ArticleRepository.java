@@ -1,6 +1,6 @@
-package com.tispace.common.repository;
+package com.tispace.dataingestion.infrastructure.repository;
 
-import com.tispace.common.entity.Article;
+import com.tispace.dataingestion.domain.entity.Article;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
