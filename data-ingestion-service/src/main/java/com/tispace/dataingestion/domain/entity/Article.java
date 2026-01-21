@@ -33,20 +33,20 @@ public class Article extends BaseEntity {
 	}
 
     @EqualsAndHashCode.Include
-	@Column(name = "title", nullable = false, length = 500)
+	@Column(name = "title", nullable = false, columnDefinition = "TEXT")
 	private String title;
 	
 	@Column(name = "description", columnDefinition = "TEXT")
 	private String description;
 
     @EqualsAndHashCode.Include
-	@Column(name = "author", length = 255)
+	@Column(name = "author", columnDefinition = "TEXT")
 	private String author;
 	
 	@Column(name = "published_at")
 	private LocalDateTime publishedAt;
 	
-	@Column(name = "category", length = 100)
+	@Column(name = "category", columnDefinition = "TEXT")
 	private String category;
 }
 
