@@ -6,7 +6,7 @@
 		<groupId>org.springframework.boot</groupId>
 		<artifactId>spring-boot-starter-parent</artifactId>
 		<version>3.5.9</version>
-		<relativePath/> <!-- lookup parent from repository -->
+		<relativePath/>
 	</parent>
 
 	<groupId>com.tispace</groupId>
@@ -26,6 +26,8 @@
 	<properties>
 		<java.version>21</java.version>
         <maven.compiler.release>21</maven.compiler.release>
+		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+		<project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
 		<spring-cloud.version>2025.0.1</spring-cloud.version>
 		<mapstruct.version>1.5.5.Final</mapstruct.version>
 		<openai-java.version>0.18.0</openai-java.version>
@@ -33,14 +35,12 @@
         <micrometer-tracing-bridge-otel.version>1.6.1</micrometer-tracing-bridge-otel.version>
 		<lombok.version>1.18.30</lombok.version>
 		<uuid-creator.version>5.3.7</uuid-creator.version>
+		<swagger-annotations.version>2.2.22</swagger-annotations.version>
+		<springdoc-openapi.version>2.8.9</springdoc-openapi.version>
+		<commons-text.version>1.13.0</commons-text.version>
     </properties>
 	<dependencyManagement>
 		<dependencies>
-            <dependency>
-                <groupId>org.springframework.boot</groupId>
-                <artifactId>spring-boot-starter-actuator</artifactId>
-                <version>3.5.9</version>
-            </dependency>
             <dependency>
                 <groupId>io.micrometer</groupId>
                 <artifactId>micrometer-tracing-bridge-otel</artifactId>
@@ -73,31 +73,78 @@
 				<artifactId>uuid-creator</artifactId>
 				<version>${uuid-creator.version}</version>
 			</dependency>
-			<!-- Swagger annotations version managed here for compilation (scope: provided in common-module) -->
-			<!-- Runtime version is controlled by springdoc-openapi-starter-webmvc-ui (2.8.9) -->
-			<!-- SpringDoc OpenAPI 2.8.9 uses swagger-annotations 2.2.22+ -->
-			<!-- We use 2.2.22 for compilation, but SpringDoc will provide its version at runtime -->
 			<dependency>
 				<groupId>io.swagger.core.v3</groupId>
 				<artifactId>swagger-annotations</artifactId>
-				<version>2.2.22</version>
+				<version>${swagger-annotations.version}</version>
+			</dependency>
+			<dependency>
+				<groupId>org.springdoc</groupId>
+				<artifactId>springdoc-openapi-starter-webmvc-ui</artifactId>
+				<version>${springdoc-openapi.version}</version>
+			</dependency>
+			<dependency>
+				<groupId>org.apache.commons</groupId>
+				<artifactId>commons-text</artifactId>
+				<version>${commons-text.version}</version>
 			</dependency>
 		</dependencies>
 	</dependencyManagement>
 
 	<build>
+		<pluginManagement>
+			<plugins>
+				<plugin>
+					<groupId>org.apache.maven.plugins</groupId>
+					<artifactId>maven-compiler-plugin</artifactId>
+					<configuration>
+						<annotationProcessorPaths>
+							<path>
+								<groupId>org.projectlombok</groupId>
+								<artifactId>lombok</artifactId>
+							</path>
+						</annotationProcessorPaths>
+					</configuration>
+				</plugin>
+				<plugin>
+					<groupId>org.apache.maven.plugins</groupId>
+					<artifactId>maven-surefire-plugin</artifactId>
+				</plugin>
+				<plugin>
+					<groupId>org.springframework.boot</groupId>
+					<artifactId>spring-boot-maven-plugin</artifactId>
+					<configuration>
+						<excludes>
+							<exclude>
+								<groupId>org.projectlombok</groupId>
+								<artifactId>lombok</artifactId>
+							</exclude>
+						</excludes>
+					</configuration>
+				</plugin>
+			</plugins>
+		</pluginManagement>
 		<plugins>
 			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>
-				<artifactId>maven-compiler-plugin</artifactId>
-				<configuration>
-					<annotationProcessorPaths>
-						<path>
-							<groupId>org.projectlombok</groupId>
-							<artifactId>lombok</artifactId>
-						</path>
-					</annotationProcessorPaths>
-				</configuration>
+				<artifactId>maven-enforcer-plugin</artifactId>
+				<version>3.4.0</version>
+				<executions>
+					<execution>
+						<id>enforce</id>
+						<goals>
+							<goal>enforce</goal>
+						</goals>
+						<configuration>
+							<rules>
+								<dependencyConvergence/>
+								<requireNoRepositories>
+									<message>No repositories should be defined in POM files</message>
+								</requireNoRepositories>
+							</rules>
+						</configuration>
+					</execution>
+				</executions>
 			</plugin>
 		</plugins>
 	</build>

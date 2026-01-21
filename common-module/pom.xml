@@ -12,67 +12,37 @@
 	<packaging>jar</packaging>
 	
 	<dependencies>
-		<!-- Jakarta Validation API (for DTO validation annotations, not Spring Validation) -->
 		<dependency>
 			<groupId>jakarta.validation</groupId>
 			<artifactId>jakarta.validation-api</artifactId>
 		</dependency>
-		<!-- Jackson annotations (for JSON serialization, not full Jackson) -->
 		<dependency>
 			<groupId>com.fasterxml.jackson.core</groupId>
 			<artifactId>jackson-annotations</artifactId>
 		</dependency>
-		<!-- Swagger/OpenAPI annotations for API documentation -->
-		<!-- Note: swagger-annotations is marked as 'provided' to avoid version conflicts -->
-		<!-- DTOs in common-module use Swagger annotations (@Schema) for API documentation -->
-		<!-- 'provided' scope means: needed for compilation, but runtime version comes from SpringDoc -->
-		<!-- The actual runtime version is controlled by springdoc-openapi-starter-webmvc-ui (2.8.9) -->
-		<!-- This ensures SpringDoc OpenAPI controls the swagger-annotations version at runtime -->
 		<dependency>
 			<groupId>io.swagger.core.v3</groupId>
 			<artifactId>swagger-annotations</artifactId>
 			<scope>provided</scope>
 		</dependency>
-		<!-- Lombok (build-time only) -->
 		<dependency>
 			<groupId>org.projectlombok</groupId>
 			<artifactId>lombok</artifactId>
 			<optional>true</optional>
 		</dependency>
-		<!-- Apache Commons Lang3 (for utilities) -->
 		<dependency>
 			<groupId>org.apache.commons</groupId>
 			<artifactId>commons-lang3</artifactId>
 		</dependency>
-		<!-- UUID Creator (for utilities) -->
 		<dependency>
 			<groupId>com.github.f4b6a3</groupId>
 			<artifactId>uuid-creator</artifactId>
 		</dependency>
-		<!-- Test dependencies -->
 		<dependency>
 			<groupId>org.springframework.boot</groupId>
 			<artifactId>spring-boot-starter-test</artifactId>
 			<scope>test</scope>
 		</dependency>
 	</dependencies>
-	
-	<build>
-		<plugins>
-			<plugin>
-				<groupId>org.apache.maven.plugins</groupId>
-				<artifactId>maven-compiler-plugin</artifactId>
-				<configuration>
-					<annotationProcessorPaths>
-						<path>
-							<groupId>org.projectlombok</groupId>
-							<artifactId>lombok</artifactId>
-							<version>${lombok.version}</version>
-						</path>
-					</annotationProcessorPaths>
-				</configuration>
-			</plugin>
-		</plugins>
-	</build>
 </project>
 
