@@ -107,13 +107,12 @@ resilience4j:
     instances:
       queryService:
         maxAttempts: 3
-        waitDuration: 1s
+        waitDuration: 500ms
         enableExponentialBackoff: true
         exponentialBackoffMultiplier: 2
         retryExceptions:
           - org.springframework.web.client.ResourceAccessException
-          - java.net.ConnectException
-          - java.net.SocketTimeoutException
+          - org.springframework.web.client.HttpServerErrorException
       newsApi:
         maxAttempts: 3
         waitDuration: 2s
@@ -121,8 +120,7 @@ resilience4j:
         exponentialBackoffMultiplier: 2
         retryExceptions:
           - org.springframework.web.client.ResourceAccessException
-          - java.net.ConnectException
-          - java.net.SocketTimeoutException
+          - org.springframework.web.client.HttpServerErrorException
   ratelimiter:
     instances:
       queryService:
