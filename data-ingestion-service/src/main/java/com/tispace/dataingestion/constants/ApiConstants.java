@@ -8,7 +8,7 @@ public final class ApiConstants {
 	
 	// RestTemplate timeouts (in milliseconds)
 	public static final int CONNECT_TIMEOUT_MS = 5000;
-	public static final int READ_TIMEOUT_MS = 10000;
+	public static final int READ_TIMEOUT_MS = 30000;
 }
 
 

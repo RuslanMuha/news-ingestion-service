@@ -33,7 +33,7 @@ spring:
         javax:
           persistence:
             query:
-              timeout: 300000
+              timeout: 30000
   liquibase:
     change-log: classpath:db/changelog/db.changelog-master.yaml
 
@@ -69,7 +69,11 @@ management:
   endpoints:
     web:
       exposure:
-        include: health,info
+        include: health,info,metrics,prometheus
+  metrics:
+    export:
+      prometheus:
+        enabled: true
   endpoint:
     health:
       probes:
@@ -121,6 +125,14 @@ resilience4j:
         retryExceptions:
           - org.springframework.web.client.ResourceAccessException
           - org.springframework.web.client.HttpServerErrorException
+      database:
+        maxAttempts: 3
+        waitDuration: 100ms
+        enableExponentialBackoff: true
+        exponentialBackoffMultiplier: 2
+        retryExceptions:
+          - org.springframework.dao.TransientDataAccessException
+          - java.sql.SQLTransientException
   ratelimiter:
     instances:
       queryService:

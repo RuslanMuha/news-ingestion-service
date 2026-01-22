@@ -8,6 +8,7 @@ import com.tispace.dataingestion.infrastructure.repository.ArticleRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
+import io.github.resilience4j.retry.annotation.Retry;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
@@ -24,6 +25,7 @@ public class ArticleQueryService {
 	private final ArticleRepository articleRepository;
 	private final ArticleMapper articleMapper;
 	
+	@Retry(name = "database")
 	public Page<Article> getArticles(Pageable pageable, String category) {
 		if (StringUtils.isNotEmpty(category)) {
 			return articleRepository.findByCategory(category, pageable);
@@ -36,6 +38,7 @@ public class ArticleQueryService {
 			.map(articleMapper::toDTO);
 	}
 	
+	@Retry(name = "database")
 	public Article getArticleById(UUID id) {
 		return articleRepository.findById(id)
 			.orElseThrow(() -> new NotFoundException("Article", id));

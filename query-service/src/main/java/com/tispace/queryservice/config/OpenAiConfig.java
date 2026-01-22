@@ -21,7 +21,9 @@ public class OpenAiConfig {
 			return null;
 		}
 		
-		return new OpenAiService(apiKey, Duration.ofSeconds(timeoutSeconds));
+		Duration timeout = Duration.ofSeconds(timeoutSeconds);
+		log.info("Creating OpenAiService with timeout: {} seconds ({} ms)", timeoutSeconds, timeout.toMillis());
+		return new OpenAiService(apiKey, timeout);
 	}
 }
 

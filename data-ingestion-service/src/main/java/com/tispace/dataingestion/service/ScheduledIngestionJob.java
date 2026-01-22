@@ -13,6 +13,9 @@ import org.springframework.stereotype.Component;
 import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.Optional;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 
 /**
  * Scheduled data ingestion job with distributed locking (PostgreSQL advisory locks).
@@ -30,6 +33,9 @@ public class ScheduledIngestionJob {
 	private final DistributedLockService distributedLockService;
 	
 	private static final Duration DATA_STALENESS_THRESHOLD = Duration.ofHours(24);
+	
+	@org.springframework.beans.factory.annotation.Value("${scheduler.job-timeout-seconds:300}")
+	private int jobTimeoutSeconds;
 	
 	@EventListener(ApplicationReadyEvent.class)
 	public void onApplicationReady() {
@@ -65,10 +71,21 @@ public class ScheduledIngestionJob {
 		log.info("Attempting to acquire distributed lock for scheduled data ingestion job");
 		
 		boolean executed = distributedLockService.executeScheduledTaskWithLock(() -> {
-			log.info("Distributed lock acquired, starting scheduled data ingestion job");
+			log.info("Distributed lock acquired, starting scheduled data ingestion job with timeout of {} seconds", jobTimeoutSeconds);
 			try {
-				dataIngestionService.ingestData();
+				CompletableFuture<Void> ingestionFuture = CompletableFuture.runAsync(dataIngestionService::ingestData);
+				
+				ingestionFuture.orTimeout(jobTimeoutSeconds, TimeUnit.SECONDS).join();
 				log.info("Scheduled data ingestion job completed successfully");
+			} catch (java.util.concurrent.CompletionException e) {
+				Throwable cause = e.getCause();
+				if (cause instanceof TimeoutException) {
+					log.error("Scheduled data ingestion job timed out after {} seconds", jobTimeoutSeconds, cause);
+					throw new RuntimeException("Data ingestion timed out after " + jobTimeoutSeconds + " seconds", cause);
+				} else {
+					log.error("Scheduled data ingestion job failed", cause != null ? cause : e);
+					throw new RuntimeException("Data ingestion failed", cause != null ? cause : e);
+				}
 			} catch (Exception e) {
 				log.error("Scheduled data ingestion job failed", e);
 				throw new RuntimeException("Data ingestion failed", e);

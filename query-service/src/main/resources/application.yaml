@@ -12,9 +12,9 @@ spring:
       command-timeout: 1000ms  # Command timeout
       lettuce:
         pool:
-          max-active: 8
-          max-idle: 8
-          min-idle: 0
+          max-active: 25
+          max-idle: 25
+          min-idle: 5
           max-wait: 1000ms
 
 openai:
