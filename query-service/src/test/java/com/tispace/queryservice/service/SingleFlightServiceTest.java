@@ -10,11 +10,8 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.data.redis.core.StringRedisTemplate;
-import org.springframework.data.redis.core.ValueOperations;
 
 import java.time.Duration;
-import java.util.Collections;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -27,10 +24,7 @@ import static org.mockito.Mockito.*;
 class SingleFlightServiceTest {
 
     @Mock
-    private StringRedisTemplate redisTemplate;
-
-    @Mock
-    private ValueOperations<String, String> valueOperations;
+    private SingleFlightRedisBackend redisBackend;
 
     private SingleFlightProperties properties;
     private ObjectMapper objectMapper;
@@ -49,9 +43,7 @@ class SingleFlightServiceTest {
 
         objectMapper = new ObjectMapper();
 
-        singleFlightService = new SingleFlightService(redisTemplate, objectMapper, properties);
-
-
+        singleFlightService = new SingleFlightService(redisBackend, objectMapper, properties);
     }
 
     @Test
@@ -60,27 +52,26 @@ class SingleFlightServiceTest {
         String lockKey = "lock:singleflight:" + key;
         String resultKey = "result:singleflight:" + key;
 
-        when(valueOperations.get(resultKey)).thenReturn(null);
-        when(valueOperations.setIfAbsent(eq(lockKey), anyString(), any(Duration.class))).thenReturn(true);
-        when(redisTemplate.opsForValue()).thenReturn(valueOperations);
+        when(redisBackend.readResult(resultKey)).thenReturn(null);
+        when(redisBackend.tryAcquireLock(eq(lockKey), anyString(), any(Duration.class))).thenReturn(true);
         TestResult expected = new TestResult("ok");
 
         TestResult result = singleFlightService.execute(key, TestResult.class, () -> expected);
 
         assertEquals(expected, result);
 
-        ArgumentCaptor<String> jsonCaptor = ArgumentCaptor.forClass(String.class);
-        verify(valueOperations).set(eq(resultKey), jsonCaptor.capture(), any(Duration.class));
+        ArgumentCaptor<SingleFlightEnvelope> envelopeCaptor = ArgumentCaptor.forClass(SingleFlightEnvelope.class);
+        verify(redisBackend).writeResult(eq(resultKey), envelopeCaptor.capture(), any(Duration.class));
 
-        SingleFlightEnvelope envelope = objectMapper.readValue(jsonCaptor.getValue(), SingleFlightEnvelope.class);
+        SingleFlightEnvelope envelope = envelopeCaptor.getValue();
         assertTrue(envelope.isSuccess());
         assertNotNull(envelope.getPayload());
 
         TestResult storedPayload = objectMapper.readValue(envelope.getPayload(), TestResult.class);
         assertEquals("ok", storedPayload.value());
 
-        verify(valueOperations, times(1)).setIfAbsent(eq(lockKey), anyString(), any(Duration.class));
-        verify(redisTemplate, atLeastOnce()).execute(any(), eq(Collections.singletonList(lockKey)), anyString());
+        verify(redisBackend, times(1)).tryAcquireLock(eq(lockKey), anyString(), any(Duration.class));
+        verify(redisBackend, atLeastOnce()).releaseLock(eq(lockKey), anyString());
     }
 
     @Test
@@ -91,8 +82,7 @@ class SingleFlightServiceTest {
         SingleFlightEnvelope cachedEnvelope =
                 new SingleFlightEnvelope(true, objectMapper.writeValueAsString(new TestResult("cached")), null, null);
 
-        when(valueOperations.get(resultKey)).thenReturn(objectMapper.writeValueAsString(cachedEnvelope));
-        when(redisTemplate.opsForValue()).thenReturn(valueOperations);
+        when(redisBackend.readResult(resultKey)).thenReturn(cachedEnvelope);
         AtomicInteger executions = new AtomicInteger(0);
 
         TestResult result = singleFlightService.execute(key, TestResult.class, () -> {
@@ -103,16 +93,14 @@ class SingleFlightServiceTest {
         assertEquals("cached", result.value());
         assertEquals(0, executions.get());
 
-        verify(valueOperations, times(1)).get(resultKey);
-        verify(valueOperations, never()).setIfAbsent(anyString(), anyString(), any(Duration.class));
+        verify(redisBackend, times(1)).readResult(resultKey);
+        verify(redisBackend, never()).tryAcquireLock(anyString(), anyString(), any(Duration.class));
     }
 
     @Test
     void execute_whenRedisReadFails_thenFallsBackToInMemorySingleFlight() throws Exception {
-
-        when(redisTemplate.opsForValue()).thenReturn(valueOperations);
         String key = "article:fallback";
-        when(valueOperations.get(anyString())).thenThrow(new RuntimeException("redis down"));
+        when(redisBackend.readResult(anyString())).thenThrow(new RuntimeException("redis down"));
 
         AtomicInteger executions = new AtomicInteger(0);
 
@@ -133,8 +121,7 @@ class SingleFlightServiceTest {
         SingleFlightEnvelope errorEnvelope =
                 new SingleFlightEnvelope(false, null, "EXTERNAL_API", "failure");
 
-        when(valueOperations.get(resultKey)).thenReturn(objectMapper.writeValueAsString(errorEnvelope));
-        when(redisTemplate.opsForValue()).thenReturn(valueOperations);
+        when(redisBackend.readResult(resultKey)).thenReturn(errorEnvelope);
         ExternalApiException ex = assertThrows(
                 ExternalApiException.class,
                 () -> singleFlightService.execute(key, TestResult.class, () -> new TestResult("unused"))
@@ -152,9 +139,7 @@ class SingleFlightServiceTest {
         SingleFlightEnvelope badEnvelope =
                 new SingleFlightEnvelope(true, null, null, null);
 
-        when(redisTemplate.opsForValue()).thenReturn(valueOperations);
-
-        when(valueOperations.get(resultKey)).thenReturn(objectMapper.writeValueAsString(badEnvelope));
+        when(redisBackend.readResult(resultKey)).thenReturn(badEnvelope);
 
         ExternalApiException ex = assertThrows(
                 ExternalApiException.class,
@@ -178,10 +163,8 @@ class SingleFlightServiceTest {
 
     @Test
     void execute_withConcurrentInMemoryFallback_onlyExecutesOperationOnce() throws Exception {
-
-        when(redisTemplate.opsForValue()).thenReturn(valueOperations);
         // Force Redis failure so in-memory single-flight is used
-        when(valueOperations.get(anyString())).thenThrow(new RuntimeException("redis down"));
+        when(redisBackend.readResult(anyString())).thenThrow(new RuntimeException("redis down"));
 
         int threadCount = 6;
         ExecutorService pool = Executors.newFixedThreadPool(threadCount);

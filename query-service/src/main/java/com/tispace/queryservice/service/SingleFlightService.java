@@ -6,12 +6,9 @@ import com.tispace.queryservice.config.SingleFlightProperties;
 import com.tispace.queryservice.dto.SingleFlightEnvelope;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.data.redis.core.StringRedisTemplate;
-import org.springframework.data.redis.core.script.DefaultRedisScript;
 import org.springframework.stereotype.Service;
 
 import java.time.Duration;
-import java.util.Collections;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
@@ -30,19 +27,11 @@ public class SingleFlightService implements SingleFlightExecutor {
     private static final String LOCK_PREFIX = "lock:singleflight:";
     private static final String RESULT_PREFIX = "result:singleflight:";
 
-    private final StringRedisTemplate redis;
+    private final SingleFlightRedisBackend redisBackend;
     private final ObjectMapper objectMapper;
     private final SingleFlightProperties singleFlightProperties;
 
     private final ConcurrentHashMap<String, CompletableFuture<?>> inFlightRequests = new ConcurrentHashMap<>();
-    private static final DefaultRedisScript<Long> RELEASE_LOCK_SCRIPT = new DefaultRedisScript<>(
-            "if redis.call('get', KEYS[1]) == ARGV[1] then " +
-                    "  return redis.call('del', KEYS[1]) " +
-                    "else " +
-                    "  return 0 " +
-                    "end",
-            Long.class
-    );
 
     @Override
     public <T> T execute(String key, Class<T> resultType, SingleFlightOperation<T> operation) throws Exception {
@@ -66,7 +55,7 @@ public class SingleFlightService implements SingleFlightExecutor {
         String token = UUID.randomUUID().toString();
 
         try {
-            SingleFlightEnvelope cached = readEnvelope(resultKey);
+            SingleFlightEnvelope cached = redisBackend.readResult(resultKey);
             if (cached != null) {
                 return unwrapEnvelope(resultKey, cached, resultType);
             }
@@ -77,13 +66,19 @@ public class SingleFlightService implements SingleFlightExecutor {
             return executeWithInMemorySingleFlight(key, operation);
         }
 
-        Boolean acquired = tryAcquireLock(lockKey, token, lockTtl);
+        Boolean acquired = redisBackend.tryAcquireLock(lockKey, token, lockTtl);
+        
+        // null = Redis unavailable, fallback to in-memory
+        if (acquired == null) {
+            log.warn("Redis unavailable for lockKey={}, fallback to in-memory single-flight", lockKey);
+            return executeWithInMemorySingleFlight(key, operation);
+        }
 
         if (Boolean.TRUE.equals(acquired)) {
             try {
                 T result = operation.execute();
 
-                safeWriteEnvelope(
+                redisBackend.writeResult(
                         resultKey,
                         new SingleFlightEnvelope(true, objectMapper.writeValueAsString(result), null, null),
                         resultTtl
@@ -91,7 +86,7 @@ public class SingleFlightService implements SingleFlightExecutor {
 
                 return result;
             } catch (Exception leaderError) {
-                safeWriteEnvelope(
+                redisBackend.writeResult(
                         resultKey,
                         new SingleFlightEnvelope(false, null, mapErrorCode(leaderError), safeMessage(leaderError)),
                         resultTtl
@@ -99,7 +94,7 @@ public class SingleFlightService implements SingleFlightExecutor {
 
                 throw leaderError;
             } finally {
-                releaseLockSafely(lockKey, token);
+                redisBackend.releaseLock(lockKey, token);
             }
         }
 
@@ -126,7 +121,7 @@ public class SingleFlightService implements SingleFlightExecutor {
 
             SingleFlightEnvelope env;
             try {
-                env = readEnvelope(resultKey);
+                env = redisBackend.readResult(resultKey);
             } catch (Exception redisErr) {
                 throw new ExternalApiException("Redis error while waiting for resultKey=" + resultKey, redisErr);
             }
@@ -148,20 +143,6 @@ public class SingleFlightService implements SingleFlightExecutor {
         }
 
         throw new ExternalApiException("Single-flight timeout waiting for resultKey=" + resultKey);
-    }
-
-    private SingleFlightEnvelope readEnvelope(String resultKey) throws Exception {
-        String json = redis.opsForValue().get(resultKey);
-        if (json == null) return null;
-        return objectMapper.readValue(json, SingleFlightEnvelope.class);
-    }
-
-    private void safeWriteEnvelope(String resultKey, SingleFlightEnvelope envelope, Duration ttl) {
-        try {
-            redis.opsForValue().set(resultKey, objectMapper.writeValueAsString(envelope), ttl);
-        } catch (Exception e) {
-            log.warn("Failed to store single-flight envelope for resultKey={}", resultKey, e);
-        }
     }
 
     private <T> T unwrapEnvelope(String resultKey, SingleFlightEnvelope envelope, Class<T> resultType) throws Exception {
@@ -199,23 +180,6 @@ public class SingleFlightService implements SingleFlightExecutor {
             return existing.get(singleFlightProperties.getInFlightTimeoutSeconds(), TimeUnit.SECONDS);
         } catch (Exception e) {
             throw new ExternalApiException("In-flight wait failed for key=" + key, e);
-        }
-    }
-
-    private Boolean tryAcquireLock(String lockKey, String token, Duration ttl) {
-        try {
-            return redis.opsForValue().setIfAbsent(lockKey, token, ttl);
-        } catch (Exception e) {
-            log.warn("Failed to acquire distributed lock {}. Redis may be unavailable.", lockKey, e);
-            return false;
-        }
-    }
-
-    private void releaseLockSafely(String lockKey, String token) {
-        try {
-            redis.execute(RELEASE_LOCK_SCRIPT, Collections.singletonList(lockKey), token);
-        } catch (Exception e) {
-            log.warn("Failed to release lock safely. lockKey={}", lockKey, e);
         }
     }
 
