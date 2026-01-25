@@ -23,9 +23,9 @@ import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.client.HttpClientErrorException;
 import org.springframework.web.client.ResourceAccessException;
-import org.springframework.web.context.request.WebRequest;
 import org.springframework.web.servlet.resource.NoResourceFoundException;
 
+import jakarta.servlet.http.HttpServletRequest;
 import java.time.LocalDateTime;
 
 @RestControllerAdvice(basePackages = "com.tispace.dataingestion.controller")
@@ -34,7 +34,6 @@ import java.time.LocalDateTime;
 @Slf4j
 public class GlobalExceptionHandler {
 	
-	private static final String URI_PREFIX = "uri=";
 	private static final String UNKNOWN_PATH = "unknown";
 	private static final String FAVICON_PATH = "favicon.ico";
 	private static final String SPRINGDOC_API_DOCS_PATH = "/v3/api-docs";
@@ -44,8 +43,8 @@ public class GlobalExceptionHandler {
 	private static final String VALIDATION_FAILED_MESSAGE = "Validation failed";
 	private static final String UNEXPECTED_ERROR_MESSAGE = "An unexpected error occurred";
 	private static final String INVALID_ARGUMENT_MESSAGE = "Invalid argument provided";
-	private static final String HTTP_ERROR_MESSAGE = "HTTP error occurred";
-	private static final String UNKNOWN_ERROR_MESSAGE = "Unknown error";
+	private static final String EXTERNAL_API_ERROR_MESSAGE = "External API service error occurred";
+	private static final String SERIALIZATION_ERROR_MESSAGE = "Failed to process data";
 	
 	private static final String ERROR_CODE_NOT_FOUND = "NOT_FOUND";
 	private static final String ERROR_CODE_EXTERNAL_API_ERROR = "EXTERNAL_API_ERROR";
@@ -60,6 +59,10 @@ public class GlobalExceptionHandler {
 	private static final String ERROR_CODE_VALIDATION_ERROR = "VALIDATION_ERROR";
 	private static final String ERROR_CODE_INVALID_ARGUMENT = "INVALID_ARGUMENT";
 	private static final String ERROR_CODE_INTERNAL_ERROR = "INTERNAL_ERROR";
+	private static final String ERROR_CODE_UNAUTHORIZED = "UNAUTHORIZED";
+	private static final String ERROR_CODE_FORBIDDEN = "FORBIDDEN";
+	private static final String ERROR_CODE_BAD_REQUEST = "BAD_REQUEST";
+	private static final String ERROR_CODE_CONFLICT = "CONFLICT";
 	
 	private static final String PATTERN_DUPLICATE = "duplicate";
 	private static final String PATTERN_UNIQUE_CONSTRAINT = "unique constraint";
@@ -73,35 +76,40 @@ public class GlobalExceptionHandler {
 	private static final String MESSAGE_TRUNCATION_SUFFIX = "...";
 	
 	@ExceptionHandler(NotFoundException.class)
-	public ResponseEntity<ErrorResponseDTO> handleNotFoundException(NotFoundException ex, WebRequest request) {
-		log.error("Resource not found: {}", ex.getMessage());
-		return buildErrorResponse(ERROR_CODE_NOT_FOUND, ex.getMessage(), HttpStatus.NOT_FOUND, request);
+	public ResponseEntity<ErrorResponseDTO> handleNotFoundException(NotFoundException ex, HttpServletRequest request) {
+		String safeMessage = ex.getMessage() != null ? ex.getMessage() : "Resource not found";
+		log.warn("Resource not found: {}", safeMessage);
+		return buildErrorResponse(ERROR_CODE_NOT_FOUND, safeMessage, HttpStatus.NOT_FOUND, request);
 	}
 	
 	@ExceptionHandler(ExternalApiException.class)
-	public ResponseEntity<ErrorResponseDTO> handleExternalApiException(ExternalApiException ex, WebRequest request) {
+	public ResponseEntity<ErrorResponseDTO> handleExternalApiException(ExternalApiException ex, HttpServletRequest request) {
 		String sanitizedMessage = sanitizeMessage(ex.getMessage());
 		log.error("External API error: {}", sanitizedMessage);
-		return buildErrorResponse(ERROR_CODE_EXTERNAL_API_ERROR, ex.getMessage(), HttpStatus.SERVICE_UNAVAILABLE, request);
+		return buildErrorResponse(ERROR_CODE_EXTERNAL_API_ERROR, EXTERNAL_API_ERROR_MESSAGE, HttpStatus.SERVICE_UNAVAILABLE, request);
 	}
 	
 	@ExceptionHandler(HttpClientErrorException.class)
-	public ResponseEntity<ErrorResponseDTO> handleHttpClientErrorException(HttpClientErrorException ex, WebRequest request) {
+	public ResponseEntity<ErrorResponseDTO> handleHttpClientErrorException(HttpClientErrorException ex, HttpServletRequest request) {
 		HttpStatusCode statusCode = ex.getStatusCode();
 		HttpStatus status = HttpStatus.resolve(statusCode.value());
 		if (status == null) {
 			status = HttpStatus.INTERNAL_SERVER_ERROR;
 		}
 		String errorCode = determineErrorCode(status);
-		String message = determineHttpErrorMessage(ex, status);
+		String message = determineHttpErrorMessage(status);
 		
-		String sanitizedMessage = sanitizeMessage(message);
-		log.error("HTTP client error [{}]: {}", status.value(), sanitizedMessage);
+		String sanitizedMessage = sanitizeMessage(ex.getMessage());
+		if (status == HttpStatus.NOT_FOUND) {
+			log.warn("HTTP client error [{}]: {}", status.value(), sanitizedMessage);
+		} else {
+			log.error("HTTP client error [{}]: {}", status.value(), sanitizedMessage);
+		}
 		return buildErrorResponse(errorCode, message, status, request);
 	}
 	
 	@ExceptionHandler(ResourceAccessException.class)
-	public ResponseEntity<ErrorResponseDTO> handleResourceAccessException(ResourceAccessException ex, WebRequest request) {
+	public ResponseEntity<ErrorResponseDTO> handleResourceAccessException(ResourceAccessException ex, HttpServletRequest request) {
 		String exceptionMessage = ex.getMessage();
 		String message = "Connection timeout or network error occurred";
 		
@@ -120,11 +128,10 @@ public class GlobalExceptionHandler {
 	}
 	
 	@ExceptionHandler(DataIntegrityViolationException.class)
-	public ResponseEntity<ErrorResponseDTO> handleDataIntegrityViolationException(DataIntegrityViolationException ex, WebRequest request) {
+	public ResponseEntity<ErrorResponseDTO> handleDataIntegrityViolationException(DataIntegrityViolationException ex, HttpServletRequest request) {
 		String message = "Data integrity violation occurred";
 		String errorCode = ERROR_CODE_DATA_INTEGRITY_ERROR;
 		
-		// Check if it's a duplicate key violation
 		String exceptionMessage = ex.getMessage();
 		if (exceptionMessage != null) {
 			String lowerMessage = exceptionMessage.toLowerCase();
@@ -137,65 +144,63 @@ public class GlobalExceptionHandler {
 			}
 		}
 		
-		log.error("Data integrity violation: {}", exceptionMessage, ex);
+		String sanitizedMessage = sanitizeMessage(exceptionMessage);
+		log.error("Data integrity violation: {}", sanitizedMessage, ex);
 		return buildErrorResponse(errorCode, message, HttpStatus.CONFLICT, request);
 	}
 	
-	
-	@ExceptionHandler(JsonProcessingException.class)
-	public ResponseEntity<ErrorResponseDTO> handleJsonProcessingException(JsonProcessingException ex, WebRequest request) {
-		log.error("JSON processing error: {}", ex.getMessage(), ex);
-		return buildErrorResponse(ERROR_CODE_SERIALIZATION_ERROR, "Failed to process JSON data", HttpStatus.INTERNAL_SERVER_ERROR, request);
+	@ExceptionHandler({JsonProcessingException.class, SerializationException.class})
+	public ResponseEntity<ErrorResponseDTO> handleSerializationException(Exception ex, HttpServletRequest request) {
+		String sanitizedMessage = sanitizeMessage(ex.getMessage());
+		log.error("Serialization error: {}", sanitizedMessage, ex);
+		return buildErrorResponse(ERROR_CODE_SERIALIZATION_ERROR, SERIALIZATION_ERROR_MESSAGE, HttpStatus.INTERNAL_SERVER_ERROR, request);
 	}
 	
 	@ExceptionHandler(CacheException.class)
-	public ResponseEntity<ErrorResponseDTO> handleCacheException(CacheException ex, WebRequest request) {
-		log.warn("Cache error: {}", ex.getMessage());
+	public ResponseEntity<ErrorResponseDTO> handleCacheException(CacheException ex, HttpServletRequest request) {
+		String sanitizedMessage = sanitizeMessage(ex.getMessage());
+		log.warn("Cache error: {}", sanitizedMessage);
 		return buildErrorResponse(ERROR_CODE_CACHE_UNAVAILABLE, "Cache service is temporarily unavailable", HttpStatus.SERVICE_UNAVAILABLE, request);
 	}
 	
 	@ExceptionHandler(RateLimitExceededException.class)
-	public ResponseEntity<ErrorResponseDTO> handleRateLimitExceededException(RateLimitExceededException ex, WebRequest request) {
-		log.warn("Rate limit exceeded: {}", ex.getMessage());
-		return buildErrorResponse(ERROR_CODE_RATE_LIMIT_EXCEEDED, ex.getMessage(), HttpStatus.TOO_MANY_REQUESTS, request);
-	}
-	
-	@ExceptionHandler(SerializationException.class)
-	public ResponseEntity<ErrorResponseDTO> handleSerializationException(SerializationException ex, WebRequest request) {
-		log.error("Serialization error: {}", ex.getMessage(), ex);
-		return buildErrorResponse(ERROR_CODE_SERIALIZATION_ERROR, ex.getMessage(), HttpStatus.INTERNAL_SERVER_ERROR, request);
+	public ResponseEntity<ErrorResponseDTO> handleRateLimitExceededException(RateLimitExceededException ex, HttpServletRequest request) {
+		String safeMessage = ex.getMessage() != null ? ex.getMessage() : "Rate limit exceeded";
+		log.warn("Rate limit exceeded: {}", safeMessage);
+		return buildErrorResponse(ERROR_CODE_RATE_LIMIT_EXCEEDED, safeMessage, HttpStatus.TOO_MANY_REQUESTS, request);
 	}
 	
 	@ExceptionHandler(BusinessException.class)
-	public ResponseEntity<ErrorResponseDTO> handleBusinessException(BusinessException ex, WebRequest request) {
-		log.error("Business error: {}", ex.getMessage());
-		return buildErrorResponse(ERROR_CODE_BUSINESS_ERROR, ex.getMessage(), HttpStatus.BAD_REQUEST, request);
+	public ResponseEntity<ErrorResponseDTO> handleBusinessException(BusinessException ex, HttpServletRequest request) {
+		String safeMessage = ex.getMessage() != null ? ex.getMessage() : "Business error occurred";
+		log.error("Business error: {}", safeMessage);
+		return buildErrorResponse(ERROR_CODE_BUSINESS_ERROR, safeMessage, HttpStatus.BAD_REQUEST, request);
 	}
 	
 	@ExceptionHandler(MethodArgumentNotValidException.class)
-	public ResponseEntity<ErrorResponseDTO> handleValidationException(MethodArgumentNotValidException ex, WebRequest request) {
-		log.error("Validation error: {}", ex.getMessage());
+	public ResponseEntity<ErrorResponseDTO> handleValidationException(MethodArgumentNotValidException ex, HttpServletRequest request) {
 		String message = ex.getBindingResult().getFieldErrors().stream()
 			.map(error -> String.format("%s: %s", error.getField(), error.getDefaultMessage()))
 			.reduce((a, b) -> String.format("%s, %s", a, b))
 			.orElse(VALIDATION_FAILED_MESSAGE);
 		
 		if (VALIDATION_FAILED_MESSAGE.equals(message)) {
-            message = ex.getMessage();
-        }
+			message = VALIDATION_FAILED_MESSAGE;
+		}
 		
+		log.warn("Validation error: {}", message);
 		return buildErrorResponse(ERROR_CODE_VALIDATION_ERROR, message, HttpStatus.BAD_REQUEST, request);
 	}
 	
 	@ExceptionHandler(IllegalArgumentException.class)
-	public ResponseEntity<ErrorResponseDTO> handleIllegalArgumentException(IllegalArgumentException ex, WebRequest request) {
-		log.error("Illegal argument: {}", ex.getMessage());
-		String message = ex.getMessage() != null ? ex.getMessage() : INVALID_ARGUMENT_MESSAGE;
-		return buildErrorResponse(ERROR_CODE_INVALID_ARGUMENT, message, HttpStatus.BAD_REQUEST, request);
+	public ResponseEntity<ErrorResponseDTO> handleIllegalArgumentException(IllegalArgumentException ex, HttpServletRequest request) {
+		String safeMessage = ex.getMessage() != null ? ex.getMessage() : INVALID_ARGUMENT_MESSAGE;
+		log.warn("Illegal argument: {}", safeMessage);
+		return buildErrorResponse(ERROR_CODE_INVALID_ARGUMENT, safeMessage, HttpStatus.BAD_REQUEST, request);
 	}
 	
 	@ExceptionHandler(NoResourceFoundException.class)
-	public ResponseEntity<?> handleNoResourceFoundException(NoResourceFoundException ex, WebRequest request) {
+	public ResponseEntity<?> handleNoResourceFoundException(NoResourceFoundException ex, HttpServletRequest request) {
 		String path = extractPath(request);
 		
 		if (path.contains(FAVICON_PATH)) {
@@ -209,19 +214,19 @@ public class GlobalExceptionHandler {
 		}
 		
 		log.warn("Resource not found: {}", path);
-		return buildErrorResponse(ERROR_CODE_NOT_FOUND, ex.getMessage(), HttpStatus.NOT_FOUND, request);
+		return buildErrorResponse(ERROR_CODE_NOT_FOUND, "Resource not found", HttpStatus.NOT_FOUND, request);
 	}
 	
 	@ExceptionHandler(Exception.class)
-	public ResponseEntity<ErrorResponseDTO> handleGenericException(Exception ex, WebRequest request) {
-		String errorMessage = truncateMessage(ex.getMessage());
-		
-		log.error("Unexpected error: {}", errorMessage != null ? errorMessage : UNKNOWN_ERROR_MESSAGE, ex);
+	public ResponseEntity<ErrorResponseDTO> handleGenericException(Exception ex, HttpServletRequest request) {
+		String sanitizedMessage = sanitizeMessage(ex.getMessage());
+		log.error("Unexpected error: {}", sanitizedMessage != null ? sanitizedMessage : "Unknown error", ex);
 		return buildErrorResponse(ERROR_CODE_INTERNAL_ERROR, UNEXPECTED_ERROR_MESSAGE, HttpStatus.INTERNAL_SERVER_ERROR, request);
 	}
 	
 	private ResponseEntity<ErrorResponseDTO> buildErrorResponse(String errorCode, String message, 
-	                                                             HttpStatus status, WebRequest request) {
+	                                                             HttpStatus status, HttpServletRequest request) {
+		// TODO: Consider migrating ErrorResponseDTO.timestamp to Instant for UTC-friendly timestamps
 		ErrorResponseDTO error = ErrorResponseDTO.builder()
 			.errorCode(errorCode)
 			.message(message)
@@ -231,20 +236,12 @@ public class GlobalExceptionHandler {
 		return new ResponseEntity<>(error, status);
 	}
 	
-	private String extractPath(WebRequest request) {
-		try {
-			String description = request.getDescription(false);
-			if (StringUtils.isEmpty(description)) {
-				return UNKNOWN_PATH;
-			}
-			return description.replace(URI_PREFIX, "");
-		} catch (Exception e) {
-			try {
-				log.warn("Failed to extract path from request", e);
-			} catch (Exception logException) {
-			}
+	private String extractPath(HttpServletRequest request) {
+		if (request == null) {
 			return UNKNOWN_PATH;
 		}
+		String requestURI = request.getRequestURI();
+		return StringUtils.isNotEmpty(requestURI) ? requestURI : UNKNOWN_PATH;
 	}
 	
 	private boolean isSpringDocPath(String path) {
@@ -265,40 +262,39 @@ public class GlobalExceptionHandler {
 	
 	private String determineErrorCode(HttpStatus status) {
 		if (status == null) {
-			return "HTTP_ERROR";
+			return ERROR_CODE_INTERNAL_ERROR;
 		}
-		return status.name();
+		return switch (status) {
+			case NOT_FOUND -> ERROR_CODE_NOT_FOUND;
+			case UNAUTHORIZED -> ERROR_CODE_UNAUTHORIZED;
+			case FORBIDDEN -> ERROR_CODE_FORBIDDEN;
+			case BAD_REQUEST -> ERROR_CODE_BAD_REQUEST;
+			case CONFLICT -> ERROR_CODE_CONFLICT;
+			case TOO_MANY_REQUESTS -> ERROR_CODE_RATE_LIMIT_EXCEEDED;
+			default -> ERROR_CODE_INTERNAL_ERROR;
+		};
 	}
 	
-	private String determineHttpErrorMessage(HttpClientErrorException ex, HttpStatus status) {
-		if (status == HttpStatus.UNAUTHORIZED) {
-			return "Authentication failed. Please check your credentials.";
-		} else if (status == HttpStatus.FORBIDDEN) {
-			return "Access forbidden. You don't have permission to access this resource.";
-		} else if (status == HttpStatus.NOT_FOUND) {
-			return "Resource not found.";
-		} else if (status == HttpStatus.TOO_MANY_REQUESTS) {
-			return "Rate limit exceeded. Please try again later.";
-		} else if (status == HttpStatus.CONFLICT) {
-			return "Resource conflict. The resource already exists or is in use.";
+	private String determineHttpErrorMessage(HttpStatus status) {
+		if (status == null) {
+			return "HTTP error occurred";
 		}
-		
-		String exceptionMessage = ex.getMessage();
-		if (exceptionMessage != null && !exceptionMessage.isEmpty()) {
-			// Extract only the status code part, not the full response body
-			return HTTP_ERROR_MESSAGE;
-		}
-		
-		return HTTP_ERROR_MESSAGE;
+		return switch (status) {
+			case UNAUTHORIZED -> "Authentication failed. Please check your credentials.";
+			case FORBIDDEN -> "Access forbidden. You don't have permission to access this resource.";
+			case NOT_FOUND -> "Resource not found.";
+			case TOO_MANY_REQUESTS -> "Rate limit exceeded. Please try again later.";
+			case CONFLICT -> "Resource conflict. The resource already exists or is in use.";
+			case BAD_REQUEST -> "Invalid request. Please check your input.";
+			default -> "HTTP error occurred";
+		};
 	}
 	
 	private String sanitizeMessage(String message) {
 		if (message == null) {
 			return null;
 		}
-		
 		String masked = SensitiveDataFilter.maskSensitiveData(message);
 		return truncateMessage(masked);
 	}
 }
-
