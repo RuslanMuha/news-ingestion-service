@@ -37,7 +37,7 @@ public class QueryServiceClient {
 	
 	@CircuitBreaker(name = "queryService", fallbackMethod = "getArticleSummaryFallback")
 	@Retry(name = "queryService")
-	@Bulkhead(name = "queryService", type = Bulkhead.Type.THREADPOOL, fallbackMethod = "getArticleSummaryFallback")
+	@Bulkhead(name = "queryService", fallbackMethod = "getArticleSummaryFallback")
 	public SummaryDTO getArticleSummary(UUID articleId, ArticleDTO article) {
 		String url = String.format("%s%s/%s", queryServiceUrl, SUMMARY_ENDPOINT, articleId);
 		

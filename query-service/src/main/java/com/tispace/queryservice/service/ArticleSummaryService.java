@@ -154,7 +154,7 @@ public class ArticleSummaryService {
 
         if (article.getId() != null && !article.getId().equals(articleId)) {
             log.warn("Article ID mismatch: path={}, body={}", articleId, article.getId());
-            throw new BusinessException(String.format("Article ID in path (%d) does not match ID in body (%d)",
+            throw new BusinessException(String.format("Article ID in path (%s) does not match ID in body (%s)",
                     articleId, article.getId()));
         }
 
