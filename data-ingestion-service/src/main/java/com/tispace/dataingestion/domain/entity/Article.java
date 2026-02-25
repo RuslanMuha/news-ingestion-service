@@ -22,6 +22,7 @@ import java.util.UUID;
 public class Article extends BaseEntity {
 	
 	@Id
+	@EqualsAndHashCode.Include
 	@Column(name = "id", columnDefinition = "UUID", nullable = false, updatable = false)
 	private UUID id;
 	
@@ -32,14 +33,12 @@ public class Article extends BaseEntity {
 		}
 	}
 
-    @EqualsAndHashCode.Include
 	@Column(name = "title", nullable = false, columnDefinition = "TEXT")
 	private String title;
 	
 	@Column(name = "description", columnDefinition = "TEXT")
 	private String description;
 
-    @EqualsAndHashCode.Include
 	@Column(name = "author", columnDefinition = "TEXT")
 	private String author;
 	
