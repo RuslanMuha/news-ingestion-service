@@ -27,8 +27,9 @@ public class ArticleQueryService {
 	
 	@Retry(name = "database")
 	public Page<Article> getArticles(Pageable pageable, String category) {
-		if (StringUtils.isNotEmpty(category)) {
-			return articleRepository.findByCategory(category, pageable);
+		String normalizedCategory = StringUtils.trimToNull(category);
+		if (normalizedCategory != null) {
+			return articleRepository.findByCategory(normalizedCategory, pageable);
 		}
 		return articleRepository.findAll(pageable);
 	}

@@ -170,18 +170,32 @@ class ArticleQueryServiceTest {
 	}
 	
 	@Test
-	void testGetArticles_WithWhitespaceCategory_FiltersByWhitespaceCategory() {
-		// Note: StringUtils.isNotEmpty("   ") returns true, so whitespace is treated as valid category
+	void testGetArticles_WithWhitespaceCategory_ReturnsAllArticles() {
 		Pageable pageable = PageRequest.of(0, 20);
 		Page<Article> page = new PageImpl<>(mockArticles, pageable, 1);
 		
-		when(articleRepository.findByCategory(anyString(), any(Pageable.class))).thenReturn(page);
+		when(articleRepository.findAll(any(Pageable.class))).thenReturn(page);
 		
 		Page<Article> result = articleQueryService.getArticles(pageable, "   ");
 		
 		assertNotNull(result);
 		assertEquals(1, result.getContent().size());
-		verify(articleRepository, times(1)).findByCategory("   ", pageable);
+		verify(articleRepository, times(1)).findAll(pageable);
+		verify(articleRepository, never()).findByCategory(anyString(), any(Pageable.class));
+	}
+
+	@Test
+	void testGetArticles_WithTrimmedCategory_FiltersByTrimmedCategory() {
+		Pageable pageable = PageRequest.of(0, 20);
+		Page<Article> page = new PageImpl<>(mockArticles, pageable, 1);
+
+		when(articleRepository.findByCategory(anyString(), any(Pageable.class))).thenReturn(page);
+
+		Page<Article> result = articleQueryService.getArticles(pageable, "  technology  ");
+
+		assertNotNull(result);
+		assertEquals(1, result.getContent().size());
+		verify(articleRepository, times(1)).findByCategory("technology", pageable);
 		verify(articleRepository, never()).findAll(any(Pageable.class));
 	}
 	
