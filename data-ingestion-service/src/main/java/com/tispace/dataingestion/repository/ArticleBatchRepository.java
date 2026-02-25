@@ -68,7 +68,13 @@ public class ArticleBatchRepository {
             });
 
             for (int r : results) {
-                if (r > 0) insertedTotal += r;
+                if (r == Statement.SUCCESS_NO_INFO) {
+                    insertedTotal += 1;
+                } else if (r >= 0) {
+                    insertedTotal += r;
+                } else if (r == Statement.EXECUTE_FAILED) {
+                    log.warn("Batch insert execution failed for one row in current batch");
+                }
             }
         }
 
