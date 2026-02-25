@@ -1,6 +1,6 @@
 package com.tispace.common.exception;
 
-public class CacheException extends RuntimeException {
+public class CacheException extends BusinessException {
 	
 	public CacheException(String message) {
 		super(message);

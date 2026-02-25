@@ -1,6 +1,6 @@
 package com.tispace.common.exception;
 
-public class SerializationException extends RuntimeException {
+public class SerializationException extends BusinessException {
 	
 	public SerializationException(String message) {
 		super(message);
