@@ -12,7 +12,7 @@ import java.util.UUID;
 	@Index(name = "idx_category", columnList = "category"),
 	@Index(name = "idx_published_at", columnList = "published_at")
 }, uniqueConstraints = {
-	@UniqueConstraint(name = "uk_articles_title", columnNames = "title")
+	@UniqueConstraint(name = "uk_articles_title_published_at", columnNames = {"title", "published_at"})
 })
 @Getter
 @Setter

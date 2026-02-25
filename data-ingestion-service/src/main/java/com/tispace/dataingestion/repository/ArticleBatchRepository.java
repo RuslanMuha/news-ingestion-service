@@ -20,7 +20,7 @@ public class ArticleBatchRepository {
     private static final String INSERT_SQL =
             "INSERT INTO articles (id, title, description, author, published_at, category, created_at, updated_at) " +
                     "VALUES (?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP) " +
-                    "ON CONFLICT (title) DO NOTHING";
+                    "ON CONFLICT (title, published_at) DO NOTHING";
 
     private final JdbcTemplate jdbcTemplate;
 
