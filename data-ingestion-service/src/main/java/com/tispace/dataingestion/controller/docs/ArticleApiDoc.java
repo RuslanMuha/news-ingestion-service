@@ -76,7 +76,7 @@ public interface ArticleApiDoc {
 		summary = "Get article by ID",
 		description = "Retrieves a single article by its unique identifier. " +
 			"Rate limited to 100 requests per minute. " +
-			"Supports correlation ID via X-Correlation-ID header."
+			"Distributed tracing is propagated via OpenTelemetry trace context (traceId/spanId)."
 	)
 	@ApiResponses(value = {
 		@ApiResponse(
@@ -118,7 +118,7 @@ public interface ArticleApiDoc {
 			"First request generates the summary, subsequent requests return the cached version. " +
 			"Uses single-flight pattern to prevent concurrent generation for the same article. " +
 			"Rate limited to 100 requests per minute. " +
-			"Supports correlation ID via X-Correlation-ID header."
+			"Distributed tracing is propagated via OpenTelemetry trace context (traceId/spanId)."
 	)
 	@ApiResponses(value = {
 		@ApiResponse(
