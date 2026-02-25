@@ -74,7 +74,8 @@ curl http://localhost:8081/api/articles/550e8400-e29b-41d4-a716-446655440000/sum
 ## Environment Variables
 
 **Required:**
-- `INTERNAL_API_TOKEN` - Service-to-service auth token (required, else 500 error)
+- `INTERNAL_API_TOKEN` - Service-to-service auth token
+- `DB_NAME`, `DB_USER`, `DB_PASSWORD` - PostgreSQL credentials for Docker Compose
 
 **Recommended:**
 - `NEWS_API_KEY` - NewsAPI key (required for ingestion, else startup fails)
