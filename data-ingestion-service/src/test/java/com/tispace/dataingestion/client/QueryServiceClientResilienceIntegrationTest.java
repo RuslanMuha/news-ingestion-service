@@ -6,6 +6,7 @@ import io.github.resilience4j.circuitbreaker.CircuitBreaker;
 import io.github.resilience4j.circuitbreaker.CircuitBreakerRegistry;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.springframework.aop.framework.AopProxyUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.HttpMethod;
@@ -94,6 +95,14 @@ class QueryServiceClientResilienceIntegrationTest {
 				circuitBreaker.transitionToClosedState();
 			}
 		}
+	}
+
+	@Test
+	void testGetArticleSummary_BeanIsAopProxyForResilienceAnnotations() {
+		assertTrue(org.springframework.aop.support.AopUtils.isAopProxy(queryServiceClient),
+			"QueryServiceClient should be proxied for Resilience4j annotations");
+		Class<?> targetClass = AopProxyUtils.ultimateTargetClass(queryServiceClient);
+		assertEquals(QueryServiceClient.class, targetClass);
 	}
 	
 	@Test

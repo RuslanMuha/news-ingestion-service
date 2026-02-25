@@ -5,6 +5,7 @@ import io.github.resilience4j.circuitbreaker.CircuitBreaker;
 import io.github.resilience4j.circuitbreaker.CircuitBreakerRegistry;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.springframework.aop.framework.AopProxyUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
@@ -92,6 +93,14 @@ class NewsApiClientResilienceIntegrationTest {
 			java.util.concurrent.Callable<Object> callable = (java.util.concurrent.Callable<Object>) invocation.getArgument(0);
 			return callable.call();
 		});
+	}
+
+	@Test
+	void testFetchArticles_BeanIsAopProxyForResilienceAnnotations() {
+		assertTrue(org.springframework.aop.support.AopUtils.isAopProxy(newsApiClient),
+			"NewsApiClient should be proxied for Resilience4j annotations");
+		Class<?> targetClass = AopProxyUtils.ultimateTargetClass(newsApiClient);
+		assertEquals(NewsApiClient.class, targetClass);
 	}
 	
 	@Test

@@ -4,6 +4,7 @@ import com.tispace.dataingestion.domain.entity.Article;
 import com.tispace.dataingestion.infrastructure.repository.ArticleRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.springframework.aop.framework.AopProxyUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
@@ -70,6 +71,14 @@ class ArticleQueryServiceRetryIntegrationTest {
 		
 		mockArticles = new ArrayList<>();
 		mockArticles.add(mockArticle);
+	}
+
+	@Test
+	void testGetArticles_BeanIsAopProxyForRetryAnnotation() {
+		assertTrue(org.springframework.aop.support.AopUtils.isAopProxy(articleQueryService),
+			"ArticleQueryService should be proxied for @Retry");
+		Class<?> targetClass = AopProxyUtils.ultimateTargetClass(articleQueryService);
+		assertEquals(ArticleQueryService.class, targetClass);
 	}
 	
 	@Test
