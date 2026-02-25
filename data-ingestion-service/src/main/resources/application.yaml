@@ -49,6 +49,11 @@ services:
 query-service:
   internal-token: ${INTERNAL_API_TOKEN:}
 
+security:
+  internal:
+    header: ${INTERNAL_TOKEN_HEADER:X-Internal-Token}
+    token: ${query-service.internal-token:${INTERNAL_API_TOKEN:}}
+
 scheduler:
   enabled: true
   cron: 0 0 */6 * * *
