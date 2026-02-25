@@ -119,20 +119,17 @@ class NewsApiClientResilienceIntegrationTest {
 			.thenThrow(new org.springframework.web.client.ResourceAccessException("Connection timeout"))
 			.thenReturn(mockArticles);
 		
-		List<Article> result = newsApiClient.fetchArticles("technology", "technology");
-		
-		assertNotNull(result);
-		// Result could be from retry (success) or fallback (if retry failed or circuit breaker opened)
-		if (result.isEmpty()) {
-			// Fallback was triggered - retry may have failed or circuit breaker opened
-			verify(newsApiClientMetrics, atLeast(1)).onFallback();
-		} else {
-			// Retry succeeded
+		try {
+			List<Article> result = newsApiClient.fetchArticles("technology", "technology");
+			assertNotNull(result);
 			assertEquals(1, result.size());
 			assertEquals("Test Article", result.get(0).getTitle());
+		} catch (com.tispace.common.exception.ExternalApiException ex) {
+			// Retry may still fail and fallback now propagates explicit failure.
+			assertTrue(ex.getMessage().contains("NewsAPI"));
+			verify(newsApiClientMetrics, atLeast(1)).onFallback();
 		}
-		
-		// Verify at least one call was made (could be 1 if fallback triggered immediately, or 2+ if retry happened)
+
 		verify(newsApiClientCore, atLeastOnce()).fetchArticles("technology", "technology");
 		verify(newsApiClientMetrics, atLeast(1)).onRequest();
 	}
@@ -153,14 +150,11 @@ class NewsApiClientResilienceIntegrationTest {
 			}
 		}
 		
-		// After circuit breaker opens, fallback should be called
-		List<Article> result = newsApiClient.fetchArticles("technology", "technology");
-		
-		// Fallback returns empty list
-		assertNotNull(result);
-		assertTrue(result.isEmpty());
-		
-		// Verify fallback was called
+		// After circuit breaker opens, fallback should be called and now throws an explicit exception.
+		assertThrows(
+			com.tispace.common.exception.ExternalApiException.class,
+			() -> newsApiClient.fetchArticles("technology", "technology")
+		);
 		verify(newsApiClientMetrics, atLeast(1)).onFallback();
 	}
 	
@@ -182,18 +176,15 @@ class NewsApiClientResilienceIntegrationTest {
 	}
 	
 	@Test
-	void testFetchArticles_Fallback_ReturnsEmptyList() {
+	void testFetchArticles_Fallback_ThrowsExternalApiException() {
 		// Force fallback by making core throw exception
 		when(newsApiClientCore.fetchArticles(anyString(), anyString()))
 			.thenThrow(new RuntimeException("Service unavailable"));
 		
-		// With circuit breaker open or bulkhead full, fallback should be called
-		// Note: May need multiple calls to trigger circuit breaker first
-		List<Article> result = newsApiClient.fetchArticles("technology", "technology");
-		
-		// Fallback returns empty list
-		assertNotNull(result);
-		assertTrue(result.isEmpty());
+		assertThrows(
+			com.tispace.common.exception.ExternalApiException.class,
+			() -> newsApiClient.fetchArticles("technology", "technology")
+		);
 		
 		verify(newsApiClientMetrics, atLeast(1)).onFallback();
 	}

@@ -13,7 +13,7 @@ import java.util.List;
 
 /**
  * NewsAPI client with circuit breaker, retry, and bulkhead protection.
- * Returns empty list on failures to keep the system running.
+ * Fallback failures are surfaced via ExternalApiException for observability.
  */
 @Service
 @Slf4j
@@ -45,7 +45,7 @@ public class NewsApiClient implements ExternalApiClient {
     }
 
     /**
-     * Fallback: returns empty list when NewsAPI is unavailable.
+     * Fallback: raises an exception when NewsAPI is unavailable.
      * Called by Resilience4j, not directly.
      */
     @SuppressWarnings("unused")
@@ -55,7 +55,10 @@ public class NewsApiClient implements ExternalApiClient {
         metrics.onError();
 
         log.warn("NewsAPI fallback used. keyword={}, category={}", keyword, category, t);
-        return List.of();
+        throw new ExternalApiException(
+                "NewsAPI fallback triggered for keyword=" + keyword + ", category=" + category,
+                t
+        );
     }
 
     @Override
