@@ -13,7 +13,7 @@ import org.springframework.security.web.authentication.UsernamePasswordAuthentic
 /**
  * Spring Security configuration for query-service.
  * Protects /internal/** endpoints with API key authentication.
- * All other endpoints are publicly accessible.
+ * Actuator health/info are public for probes; metrics/prometheus require authentication.
  */
 @Configuration
 @EnableWebSecurity
@@ -29,6 +29,8 @@ public class SecurityConfig {
                 .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/internal/**").authenticated()
+                        .requestMatchers("/actuator/health", "/actuator/health/**", "/actuator/info").permitAll()
+                        .requestMatchers("/actuator/**").authenticated()
                         .anyRequest().permitAll()
                 )
                 .addFilterBefore(internalTokenAuthFilter, UsernamePasswordAuthenticationFilter.class)
