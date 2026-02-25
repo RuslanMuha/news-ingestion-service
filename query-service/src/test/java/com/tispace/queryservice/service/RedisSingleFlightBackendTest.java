@@ -46,9 +46,9 @@ class RedisSingleFlightBackendTest {
         when(redisTemplate.opsForValue()).thenReturn(valueOperations);
         when(valueOperations.setIfAbsent(eq(lockKey), eq(token), eq(ttl))).thenReturn(true);
         
-        Boolean result = backend.tryAcquireLock(lockKey, token, ttl);
-        
-        assertTrue(result);
+        SingleFlightRedisBackend.LockAcquireResult result = backend.tryAcquireLock(lockKey, token, ttl);
+
+        assertEquals(SingleFlightRedisBackend.LockAcquireResult.ACQUIRED, result);
         verify(valueOperations).setIfAbsent(lockKey, token, ttl);
     }
     
@@ -57,20 +57,20 @@ class RedisSingleFlightBackendTest {
         when(redisTemplate.opsForValue()).thenReturn(valueOperations);
         when(valueOperations.setIfAbsent(anyString(), anyString(), any(Duration.class))).thenReturn(false);
         
-        Boolean result = backend.tryAcquireLock("lock:test", "token", Duration.ofSeconds(10));
-        
-        assertFalse(result);
+        SingleFlightRedisBackend.LockAcquireResult result = backend.tryAcquireLock("lock:test", "token", Duration.ofSeconds(10));
+
+        assertEquals(SingleFlightRedisBackend.LockAcquireResult.LOCKED, result);
     }
     
     @Test
-    void tryAcquireLock_whenRedisError_thenReturnsNull() {
+    void tryAcquireLock_whenRedisError_thenReturnsBackendUnavailable() {
         when(redisTemplate.opsForValue()).thenReturn(valueOperations);
         when(valueOperations.setIfAbsent(anyString(), anyString(), any(Duration.class)))
                 .thenThrow(new RuntimeException("Redis down"));
         
-        Boolean result = backend.tryAcquireLock("lock:test", "token", Duration.ofSeconds(10));
-        
-        assertNull(result);
+        SingleFlightRedisBackend.LockAcquireResult result = backend.tryAcquireLock("lock:test", "token", Duration.ofSeconds(10));
+
+        assertEquals(SingleFlightRedisBackend.LockAcquireResult.BACKEND_UNAVAILABLE, result);
     }
     
     @Test

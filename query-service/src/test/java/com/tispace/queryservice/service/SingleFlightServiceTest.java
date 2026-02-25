@@ -53,7 +53,8 @@ class SingleFlightServiceTest {
         String resultKey = "result:singleflight:" + key;
 
         when(redisBackend.readResult(resultKey)).thenReturn(null);
-        when(redisBackend.tryAcquireLock(eq(lockKey), anyString(), any(Duration.class))).thenReturn(true);
+        when(redisBackend.tryAcquireLock(eq(lockKey), anyString(), any(Duration.class)))
+                .thenReturn(SingleFlightRedisBackend.LockAcquireResult.ACQUIRED);
         TestResult expected = new TestResult("ok");
 
         TestResult result = singleFlightService.execute(key, TestResult.class, () -> expected);
@@ -208,7 +209,8 @@ class SingleFlightServiceTest {
         String lockKey = "lock:singleflight:" + key;
 
         when(redisBackend.readResult(resultKey)).thenReturn(null);
-        when(redisBackend.tryAcquireLock(eq(lockKey), anyString(), any(Duration.class))).thenReturn(false);
+        when(redisBackend.tryAcquireLock(eq(lockKey), anyString(), any(Duration.class)))
+                .thenReturn(SingleFlightRedisBackend.LockAcquireResult.LOCKED);
 
         AtomicInteger executions = new AtomicInteger(0);
 
@@ -230,7 +232,8 @@ class SingleFlightServiceTest {
         when(redisBackend.readResult(resultKey))
                 .thenReturn(null)
                 .thenThrow(new RuntimeException("redis poll failed"));
-        when(redisBackend.tryAcquireLock(eq(lockKey), anyString(), any(Duration.class))).thenReturn(false);
+        when(redisBackend.tryAcquireLock(eq(lockKey), anyString(), any(Duration.class)))
+                .thenReturn(SingleFlightRedisBackend.LockAcquireResult.LOCKED);
 
         AtomicInteger executions = new AtomicInteger(0);
 

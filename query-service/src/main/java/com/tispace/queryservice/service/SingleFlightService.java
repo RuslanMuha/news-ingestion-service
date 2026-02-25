@@ -76,15 +76,14 @@ public class SingleFlightService implements SingleFlightExecutor {
             return executeWithInMemorySingleFlight(key, operation);
         }
 
-        Boolean acquired = redisBackend.tryAcquireLock(lockKey, token, lockTtl);
-        
-        // null = Redis unavailable, fallback to in-memory
-        if (acquired == null) {
+        SingleFlightRedisBackend.LockAcquireResult lockResult = redisBackend.tryAcquireLock(lockKey, token, lockTtl);
+
+        if (lockResult == SingleFlightRedisBackend.LockAcquireResult.BACKEND_UNAVAILABLE) {
             log.warn("Redis unavailable for lockKey={}, fallback to in-memory single-flight", lockKey);
             return executeWithInMemorySingleFlight(key, operation);
         }
 
-        if (Boolean.TRUE.equals(acquired)) {
+        if (lockResult == SingleFlightRedisBackend.LockAcquireResult.ACQUIRED) {
             try {
                 T result = operation.execute();
 

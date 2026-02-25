@@ -8,12 +8,18 @@ import java.time.Duration;
  * Isolates infrastructure details from coordination logic.
  */
 public interface SingleFlightRedisBackend {
-    
+
+    enum LockAcquireResult {
+        ACQUIRED,
+        LOCKED,
+        BACKEND_UNAVAILABLE
+    }
+
     /**
      * Attempts to acquire a distributed lock.
-     * @return true if acquired, false if held, null if Redis unavailable
+     * @return explicit lock acquisition state
      */
-    Boolean tryAcquireLock(String lockKey, String token, Duration ttl);
+    LockAcquireResult tryAcquireLock(String lockKey, String token, Duration ttl);
     
     /**
      * Releases lock safely (only if token matches).

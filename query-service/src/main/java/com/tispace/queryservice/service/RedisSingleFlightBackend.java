@@ -29,12 +29,13 @@ public class RedisSingleFlightBackend implements SingleFlightRedisBackend {
     private final ObjectMapper objectMapper;
     
     @Override
-    public Boolean tryAcquireLock(String lockKey, String token, Duration ttl) {
+    public LockAcquireResult tryAcquireLock(String lockKey, String token, Duration ttl) {
         try {
-            return redis.opsForValue().setIfAbsent(lockKey, token, ttl);
+            Boolean acquired = redis.opsForValue().setIfAbsent(lockKey, token, ttl);
+            return Boolean.TRUE.equals(acquired) ? LockAcquireResult.ACQUIRED : LockAcquireResult.LOCKED;
         } catch (Exception e) {
             log.warn("Failed to acquire distributed lock {}. Redis may be unavailable.", lockKey, e);
-            return null; // null = Redis unavailable, false = lock held
+            return LockAcquireResult.BACKEND_UNAVAILABLE;
         }
     }
     
