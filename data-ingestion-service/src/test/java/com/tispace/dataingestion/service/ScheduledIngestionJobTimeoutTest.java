@@ -12,6 +12,8 @@ import org.springframework.test.util.ReflectionTestUtils;
 
 import java.time.LocalDateTime;
 import java.util.UUID;
+import java.util.concurrent.Executor;
+import java.util.concurrent.Executors;
 import java.util.concurrent.TimeoutException;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -33,9 +35,8 @@ class ScheduledIngestionJobTimeoutTest {
 	
 	@Mock
 	private DistributedLockService distributedLockService;
-	
-	@InjectMocks
-	private ScheduledIngestionJob scheduledIngestionJob;
+
+    private ScheduledIngestionJob scheduledIngestionJob;
 	
 	private Article mockArticle;
 	private static final UUID ARTICLE_ID = UUID.fromString("01234567-89ab-7def-0123-456789abcdef");
@@ -46,7 +47,10 @@ class ScheduledIngestionJobTimeoutTest {
 		mockArticle.setId(ARTICLE_ID);
 		mockArticle.setTitle("Test Article");
 		mockArticle.setCreatedAt(LocalDateTime.now());
-		
+		// Real single-thread executor so timeout tests can run task in background and get() can time out
+        Executor scheduledIngestionExecutor = Executors.newSingleThreadExecutor();
+		scheduledIngestionJob = new ScheduledIngestionJob(
+			dataIngestionService, articleRepository, distributedLockService, scheduledIngestionExecutor);
 		// Set timeout to 1 second for faster tests
 		ReflectionTestUtils.setField(scheduledIngestionJob, "jobTimeoutSeconds", 1);
 	}

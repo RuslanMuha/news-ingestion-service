@@ -21,6 +21,7 @@ import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.Executor;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
@@ -45,9 +46,9 @@ class ResilienceOptimizationsIntegrationTest {
 	
 	@Mock
 	private DistributedLockService distributedLockService;
-	
+
 	@Mock
-	private com.tispace.dataingestion.application.mapper.ArticleMapper articleMapper;
+	private Executor scheduledIngestionExecutor;
 	
 	@InjectMocks
 	private ScheduledIngestionJob scheduledIngestionJob;
@@ -73,7 +74,12 @@ class ResilienceOptimizationsIntegrationTest {
 		
 		mockArticles = new ArrayList<>();
 		mockArticles.add(mockArticle);
-		
+		// Executor runs task on caller thread so scheduled job runs synchronously in tests
+		lenient().doAnswer(invocation -> {
+			Runnable r = invocation.getArgument(0);
+			r.run();
+			return null;
+		}).when(scheduledIngestionExecutor).execute(any(Runnable.class));
 		// Set timeout to 2 seconds for faster tests
 		ReflectionTestUtils.setField(scheduledIngestionJob, "jobTimeoutSeconds", 2);
 	}

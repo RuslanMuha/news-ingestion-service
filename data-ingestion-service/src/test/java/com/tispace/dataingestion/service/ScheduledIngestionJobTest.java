@@ -12,8 +12,11 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import java.time.LocalDateTime;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.concurrent.Executor;
 
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
+import static org.mockito.Mockito.lenient;
 
 @ExtendWith(MockitoExtension.class)
 class ScheduledIngestionJobTest {
@@ -26,6 +29,9 @@ class ScheduledIngestionJobTest {
 	
 	@Mock
 	private DistributedLockService distributedLockService;
+
+	@Mock
+	private Executor scheduledIngestionExecutor;
 	
 	@InjectMocks
 	private ScheduledIngestionJob scheduledIngestionJob;
@@ -40,7 +46,12 @@ class ScheduledIngestionJobTest {
 		mockArticle.setId(ARTICLE_ID);
 		mockArticle.setTitle("Test Article");
 		mockArticle.setCreatedAt(FIXED_NOW);
-		
+		// Executor runs task on caller thread so tests remain synchronous (lenient: not all tests use it)
+		lenient().doAnswer(invocation -> {
+			Runnable r = invocation.getArgument(0);
+			r.run();
+			return null;
+		}).when(scheduledIngestionExecutor).execute(any(Runnable.class));
 		// Set default timeout to prevent timeout issues in tests
 		org.springframework.test.util.ReflectionTestUtils.setField(scheduledIngestionJob, "jobTimeoutSeconds", 300);
 	}

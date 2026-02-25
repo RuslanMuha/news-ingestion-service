@@ -1,9 +1,11 @@
 package com.tispace.dataingestion.service;
 
+import com.tispace.dataingestion.config.SchedulerExecutorConfig;
 import com.tispace.dataingestion.domain.entity.Article;
 import com.tispace.dataingestion.infrastructure.repository.ArticleRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.boot.context.event.ApplicationReadyEvent;
 import org.springframework.context.event.EventListener;
@@ -14,6 +16,7 @@ import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.Executor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
@@ -23,14 +26,24 @@ import java.util.concurrent.TimeoutException;
  * Only one instance executes in multi-instance deployments.
  */
 @Component
-@RequiredArgsConstructor
 @Slf4j
 @ConditionalOnProperty(name = "scheduler.enabled", havingValue = "true", matchIfMissing = true)
 public class ScheduledIngestionJob {
-	
+
 	private final DataIngestionService dataIngestionService;
 	private final ArticleRepository articleRepository;
 	private final DistributedLockService distributedLockService;
+	private final Executor scheduledIngestionExecutor;
+
+	public ScheduledIngestionJob(DataIngestionService dataIngestionService,
+			ArticleRepository articleRepository,
+			DistributedLockService distributedLockService,
+			@Qualifier(SchedulerExecutorConfig.INGESTION_JOB_EXECUTOR_BEAN) Executor scheduledIngestionExecutor) {
+		this.dataIngestionService = dataIngestionService;
+		this.articleRepository = articleRepository;
+		this.distributedLockService = distributedLockService;
+		this.scheduledIngestionExecutor = scheduledIngestionExecutor;
+	}
 	
 	private static final Duration DATA_STALENESS_THRESHOLD = Duration.ofHours(24);
 	
@@ -72,23 +85,23 @@ public class ScheduledIngestionJob {
 		
 		boolean executed = distributedLockService.executeScheduledTaskWithLock(() -> {
 			log.info("Distributed lock acquired, starting scheduled data ingestion job with timeout of {} seconds", jobTimeoutSeconds);
+			CompletableFuture<Void> ingestionFuture = CompletableFuture.runAsync(dataIngestionService::ingestData, scheduledIngestionExecutor);
 			try {
-				CompletableFuture<Void> ingestionFuture = CompletableFuture.runAsync(dataIngestionService::ingestData);
-				
-				ingestionFuture.orTimeout(jobTimeoutSeconds, TimeUnit.SECONDS).join();
+				ingestionFuture.get(jobTimeoutSeconds, TimeUnit.SECONDS);
 				log.info("Scheduled data ingestion job completed successfully");
-			} catch (java.util.concurrent.CompletionException e) {
+			} catch (TimeoutException e) {
+				boolean cancelled = ingestionFuture.cancel(true);
+				log.error("Scheduled data ingestion job timed out after {} seconds (cancelled={})", jobTimeoutSeconds, cancelled, e);
+				throw new RuntimeException("Data ingestion timed out after " + jobTimeoutSeconds + " seconds", e);
+			} catch (java.util.concurrent.ExecutionException e) {
 				Throwable cause = e.getCause();
-				if (cause instanceof TimeoutException) {
-					log.error("Scheduled data ingestion job timed out after {} seconds", jobTimeoutSeconds, cause);
-					throw new RuntimeException("Data ingestion timed out after " + jobTimeoutSeconds + " seconds", cause);
-				} else {
-					log.error("Scheduled data ingestion job failed", cause != null ? cause : e);
-					throw new RuntimeException("Data ingestion failed", cause != null ? cause : e);
-				}
-			} catch (Exception e) {
-				log.error("Scheduled data ingestion job failed", e);
-				throw new RuntimeException("Data ingestion failed", e);
+				log.error("Scheduled data ingestion job failed", cause != null ? cause : e);
+				throw new RuntimeException("Data ingestion failed", cause != null ? cause : e);
+			} catch (InterruptedException e) {
+				Thread.currentThread().interrupt();
+				ingestionFuture.cancel(true);
+				log.error("Scheduled data ingestion job interrupted", e);
+				throw new RuntimeException("Data ingestion interrupted", e);
 			}
 		});
 		
