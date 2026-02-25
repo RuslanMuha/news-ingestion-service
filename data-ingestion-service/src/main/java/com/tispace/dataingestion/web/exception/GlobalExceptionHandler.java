@@ -18,11 +18,13 @@ import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.HttpStatusCode;
 import org.springframework.http.ResponseEntity;
+import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.client.HttpClientErrorException;
 import org.springframework.web.client.ResourceAccessException;
+import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 import org.springframework.web.servlet.resource.NoResourceFoundException;
 
 import jakarta.servlet.http.HttpServletRequest;
@@ -197,6 +199,18 @@ public class GlobalExceptionHandler {
 		String safeMessage = ex.getMessage() != null ? ex.getMessage() : INVALID_ARGUMENT_MESSAGE;
 		log.warn("Illegal argument: {}", safeMessage);
 		return buildErrorResponse(ERROR_CODE_INVALID_ARGUMENT, safeMessage, HttpStatus.BAD_REQUEST, request);
+	}
+
+	@ExceptionHandler(HttpMessageNotReadableException.class)
+	public ResponseEntity<ErrorResponseDTO> handleHttpMessageNotReadable(HttpMessageNotReadableException ex, HttpServletRequest request) {
+		log.warn("Malformed request body: {}", sanitizeMessage(ex.getMessage()));
+		return buildErrorResponse(ERROR_CODE_BAD_REQUEST, "Malformed JSON request body", HttpStatus.BAD_REQUEST, request);
+	}
+
+	@ExceptionHandler(MethodArgumentTypeMismatchException.class)
+	public ResponseEntity<ErrorResponseDTO> handleMethodArgumentTypeMismatch(MethodArgumentTypeMismatchException ex, HttpServletRequest request) {
+		log.warn("Invalid request parameter type: {}", ex.getName());
+		return buildErrorResponse(ERROR_CODE_BAD_REQUEST, "Invalid request parameter type", HttpStatus.BAD_REQUEST, request);
 	}
 	
 	@ExceptionHandler(NoResourceFoundException.class)
