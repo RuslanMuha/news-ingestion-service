@@ -140,14 +140,16 @@ public abstract class AbstractGlobalExceptionHandler {
         }
 
         String sanitizedMessage = sanitizeMessage(exceptionMessage);
-        log.error("Data integrity violation: {}", sanitizedMessage, ex);
+        log.error("Data integrity violation: {}", sanitizedMessage);
+        log.debug("Data integrity violation stacktrace", ex);
         return buildErrorResponse(errorCode, message, HttpStatus.CONFLICT, request);
     }
 
     @ExceptionHandler({JsonProcessingException.class, SerializationException.class})
     public ResponseEntity<ErrorResponseDTO> handleSerializationException(Exception ex, HttpServletRequest request) {
         String sanitizedMessage = sanitizeMessage(ex.getMessage());
-        log.error("Serialization error: {}", sanitizedMessage, ex);
+        log.error("Serialization error: {}", sanitizedMessage);
+        log.debug("Serialization error stacktrace", ex);
         return buildErrorResponse(ERROR_CODE_SERIALIZATION_ERROR, SERIALIZATION_ERROR_MESSAGE, HttpStatus.INTERNAL_SERVER_ERROR, request);
     }
 
@@ -222,7 +224,8 @@ public abstract class AbstractGlobalExceptionHandler {
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ErrorResponseDTO> handleGenericException(Exception ex, HttpServletRequest request) {
         String sanitizedMessage = sanitizeMessage(ex.getMessage());
-        log.error("Unexpected error: {}", sanitizedMessage != null ? sanitizedMessage : "Unknown error", ex);
+        log.error("Unexpected error: {}", sanitizedMessage != null ? sanitizedMessage : "Unknown error");
+        log.debug("Unexpected error stacktrace", ex);
         return buildErrorResponse(ERROR_CODE_INTERNAL_ERROR, UNEXPECTED_ERROR_MESSAGE, HttpStatus.INTERNAL_SERVER_ERROR, request);
     }
 
