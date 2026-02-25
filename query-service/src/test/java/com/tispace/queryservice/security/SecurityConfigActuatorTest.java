@@ -47,14 +47,28 @@ class SecurityConfigActuatorTest {
     }
 
     @Test
-    void actuatorPrometheus_requiresAuth_returns403WithoutToken() throws Exception {
+    void actuatorPrometheus_requiresAuth_returns401WithoutToken() throws Exception {
         mockMvc.perform(get("/actuator/prometheus"))
-                .andExpect(status().isForbidden());
+                .andExpect(status().isUnauthorized());
     }
 
     @Test
-    void actuatorMetrics_requiresAuth_returns403WithoutToken() throws Exception {
+    void actuatorMetrics_requiresAuth_returns401WithoutToken() throws Exception {
         mockMvc.perform(get("/actuator/metrics"))
-                .andExpect(status().isForbidden());
+                .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    void actuatorPrometheus_allowsAccessWithValidToken() throws Exception {
+        int status = mockMvc.perform(get("/actuator/prometheus").header("X-Internal-Token", "test-token"))
+                .andReturn().getResponse().getStatus();
+        assertTrue(status != 401 && status != 403, "prometheus with token should not be blocked by auth (status was " + status + ")");
+    }
+
+    @Test
+    void actuatorMetrics_allowsAccessWithValidToken() throws Exception {
+        int status = mockMvc.perform(get("/actuator/metrics").header("X-Internal-Token", "test-token"))
+                .andReturn().getResponse().getStatus();
+        assertTrue(status == 200 || status == 503, "metrics with token should be accessible (200 or 503), was " + status);
     }
 }

@@ -30,6 +30,11 @@ import java.util.List;
 @Slf4j
 public class InternalTokenAuthFilter extends OncePerRequestFilter {
 
+    private static final String INTERNAL_PATH_PREFIX = "/internal/";
+    private static final String ACTUATOR_PATH_PREFIX = "/actuator/";
+    private static final String ACTUATOR_HEALTH_PATH = "/actuator/health";
+    private static final String ACTUATOR_INFO_PATH = "/actuator/info";
+
     private final InternalSecurityProperties properties;
 
     @Override
@@ -42,7 +47,7 @@ public class InternalTokenAuthFilter extends OncePerRequestFilter {
         String requestPath = request.getRequestURI();
 
 
-        if (!requestPath.startsWith("/internal/")) {
+        if (!isProtectedPath(requestPath)) {
             filterChain.doFilter(request, response);
             return;
         }
@@ -80,6 +85,21 @@ public class InternalTokenAuthFilter extends OncePerRequestFilter {
         byte[] expected = properties.getToken().getBytes(StandardCharsets.UTF_8);
         byte[] provided = providedToken.getBytes(StandardCharsets.UTF_8);
         return MessageDigest.isEqual(expected, provided);
+    }
+
+    private boolean isProtectedPath(String requestPath) {
+        if (requestPath == null || requestPath.isBlank()) {
+            return false;
+        }
+        if (requestPath.startsWith(INTERNAL_PATH_PREFIX)) {
+            return true;
+        }
+        if (!requestPath.startsWith(ACTUATOR_PATH_PREFIX)) {
+            return false;
+        }
+        return !requestPath.equals(ACTUATOR_HEALTH_PATH)
+                && !requestPath.startsWith(ACTUATOR_HEALTH_PATH + "/")
+                && !requestPath.equals(ACTUATOR_INFO_PATH);
     }
 }
 
