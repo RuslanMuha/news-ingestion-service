@@ -1,6 +1,7 @@
 package com.tispace.dataingestion.controller;
 
 import com.tispace.common.contract.ArticleDTO;
+import com.tispace.common.contract.ErrorResponseDTO;
 import com.tispace.common.contract.SummaryDTO;
 import com.tispace.dataingestion.application.validation.SortStringParser;
 import com.tispace.dataingestion.client.QueryServiceClient;
@@ -20,6 +21,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
+import java.time.LocalDateTime;
 import java.util.UUID;
 
 @RestController
@@ -90,23 +92,33 @@ public class ArticleController implements ArticleApiDoc {
 	}
 	
 	@SuppressWarnings("unused")
-    private ResponseEntity<Page<ArticleDTO>> getArticlesRateLimitFallback(
+    private ResponseEntity<ErrorResponseDTO> getArticlesRateLimitFallback(
             Integer page, Integer size, String sort, String category, RequestNotPermitted e) {
         log.warn("Rate limit exceeded for getArticles. page={}, size={}", page, size);
-        return ResponseEntity.status(429).build();
+        return buildRateLimitResponse("/api/articles");
     }
 
 
 	@SuppressWarnings("unused")
-    private ResponseEntity<ArticleDTO> getArticleByIdRateLimitFallback(UUID id, RequestNotPermitted e) {
+    private ResponseEntity<ErrorResponseDTO> getArticleByIdRateLimitFallback(UUID id, RequestNotPermitted e) {
         log.warn("Rate limit exceeded for getArticleById. id={}", id);
-        return ResponseEntity.status(429).build();
+        return buildRateLimitResponse("/api/articles/" + id);
     }
 
 	@SuppressWarnings("unused")
-    private ResponseEntity<SummaryDTO> getArticleSummaryRateLimitFallback(UUID id, RequestNotPermitted e) {
+    private ResponseEntity<ErrorResponseDTO> getArticleSummaryRateLimitFallback(UUID id, RequestNotPermitted e) {
         log.warn("Rate limit exceeded for getArticleSummary. id={}", id);
-        return ResponseEntity.status(429).build();
+        return buildRateLimitResponse("/api/articles/" + id + "/summary");
+    }
+
+    private ResponseEntity<ErrorResponseDTO> buildRateLimitResponse(String path) {
+        ErrorResponseDTO error = ErrorResponseDTO.builder()
+                .errorCode("RATE_LIMIT_EXCEEDED")
+                .message("Rate limit exceeded. Please try again later.")
+                .timestamp(LocalDateTime.now())
+                .path(path)
+                .build();
+        return ResponseEntity.status(429).body(error);
     }
 }
 

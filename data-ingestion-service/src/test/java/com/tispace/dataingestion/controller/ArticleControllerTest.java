@@ -27,6 +27,8 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.lenient;
@@ -234,6 +236,41 @@ class ArticleControllerTest {
 		mockMvc.perform(get("/api/articles/" + invalidId)
 				.contentType(MediaType.APPLICATION_JSON))
 			.andExpect(status().isNotFound());
+	}
+
+	@Test
+	void testGetArticles_RateLimitFallback_ReturnsStructured429() throws Exception {
+		var response = org.springframework.test.util.ReflectionTestUtils.invokeMethod(
+			articleController,
+			"getArticlesRateLimitFallback",
+			0,
+			20,
+			"publishedAt,desc",
+			"technology",
+			null
+		);
+
+		org.springframework.http.ResponseEntity<?> entity = (org.springframework.http.ResponseEntity<?>) response;
+		assertEquals(429, entity.getStatusCode().value());
+		assertNotNull(entity.getBody());
+		assertEquals("RATE_LIMIT_EXCEEDED", ((com.tispace.common.contract.ErrorResponseDTO) entity.getBody()).getErrorCode());
+		assertEquals("/api/articles", ((com.tispace.common.contract.ErrorResponseDTO) entity.getBody()).getPath());
+	}
+
+	@Test
+	void testGetArticleById_RateLimitFallback_ReturnsStructured429() throws Exception {
+		var response = org.springframework.test.util.ReflectionTestUtils.invokeMethod(
+			articleController,
+			"getArticleByIdRateLimitFallback",
+			ARTICLE_ID,
+			null
+		);
+
+		org.springframework.http.ResponseEntity<?> entity = (org.springframework.http.ResponseEntity<?>) response;
+		assertEquals(429, entity.getStatusCode().value());
+		assertNotNull(entity.getBody());
+		assertEquals("RATE_LIMIT_EXCEEDED", ((com.tispace.common.contract.ErrorResponseDTO) entity.getBody()).getErrorCode());
+		assertEquals("/api/articles/" + ARTICLE_ID, ((com.tispace.common.contract.ErrorResponseDTO) entity.getBody()).getPath());
 	}
 }
 
