@@ -33,6 +33,16 @@ public class SingleFlightService implements SingleFlightExecutor {
 
     private final ConcurrentHashMap<String, CompletableFuture<?>> inFlightRequests = new ConcurrentHashMap<>();
 
+    private static final class FollowerWaitFailureException extends Exception {
+        private FollowerWaitFailureException(String message) {
+            super(message);
+        }
+
+        private FollowerWaitFailureException(String message, Throwable cause) {
+            super(message, cause);
+        }
+    }
+
     @Override
     public <T> T execute(String key, Class<T> resultType, SingleFlightOperation<T> operation) throws Exception {
         if (key == null || key.isBlank()) {
@@ -100,9 +110,7 @@ public class SingleFlightService implements SingleFlightExecutor {
 
         try {
             return waitForEnvelopeWithBackoff(resultKey, resultType);
-        } catch (ExternalApiException e) {
-            throw e;
-        } catch (Exception waitError) {
+        } catch (FollowerWaitFailureException waitError) {
             log.warn("Failed waiting for resultKey={}, fallback to in-memory", resultKey, waitError);
             return executeWithInMemorySingleFlight(key, operation);
         }
@@ -116,14 +124,14 @@ public class SingleFlightService implements SingleFlightExecutor {
         while (System.nanoTime() < deadlineNs) {
             if (Thread.currentThread().isInterrupted()) {
                 Thread.currentThread().interrupt();
-                throw new ExternalApiException("Interrupted while waiting for single-flight resultKey=" + resultKey);
+                throw new FollowerWaitFailureException("Interrupted while waiting for single-flight resultKey=" + resultKey);
             }
 
             SingleFlightEnvelope env;
             try {
                 env = redisBackend.readResult(resultKey);
             } catch (Exception redisErr) {
-                throw new ExternalApiException("Redis error while waiting for resultKey=" + resultKey, redisErr);
+                throw new FollowerWaitFailureException("Redis error while waiting for resultKey=" + resultKey, redisErr);
             }
 
             if (env != null) {
@@ -142,7 +150,7 @@ public class SingleFlightService implements SingleFlightExecutor {
             sleepMs = Math.min(Math.max(1, singleFlightProperties.getPollMaxMs()), next);
         }
 
-        throw new ExternalApiException("Single-flight timeout waiting for resultKey=" + resultKey);
+        throw new FollowerWaitFailureException("Single-flight timeout waiting for resultKey=" + resultKey);
     }
 
     private <T> T unwrapEnvelope(String resultKey, SingleFlightEnvelope envelope, Class<T> resultType) throws Exception {

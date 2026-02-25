@@ -200,6 +200,49 @@ class SingleFlightServiceTest {
         pool.shutdownNow();
     }
 
+    @Test
+    void execute_whenFollowerWaitTimesOut_thenFallsBackToInMemoryOperation() throws Exception {
+        properties.setInFlightTimeoutSeconds(1);
+        String key = "article:follower-timeout";
+        String resultKey = "result:singleflight:" + key;
+        String lockKey = "lock:singleflight:" + key;
+
+        when(redisBackend.readResult(resultKey)).thenReturn(null);
+        when(redisBackend.tryAcquireLock(eq(lockKey), anyString(), any(Duration.class))).thenReturn(false);
+
+        AtomicInteger executions = new AtomicInteger(0);
+
+        TestResult result = singleFlightService.execute(key, TestResult.class, () -> {
+            executions.incrementAndGet();
+            return new TestResult("fallback-after-timeout");
+        });
+
+        assertEquals("fallback-after-timeout", result.value());
+        assertEquals(1, executions.get());
+    }
+
+    @Test
+    void execute_whenFollowerWaitReadFails_thenFallsBackToInMemoryOperation() throws Exception {
+        String key = "article:follower-read-error";
+        String resultKey = "result:singleflight:" + key;
+        String lockKey = "lock:singleflight:" + key;
+
+        when(redisBackend.readResult(resultKey))
+                .thenReturn(null)
+                .thenThrow(new RuntimeException("redis poll failed"));
+        when(redisBackend.tryAcquireLock(eq(lockKey), anyString(), any(Duration.class))).thenReturn(false);
+
+        AtomicInteger executions = new AtomicInteger(0);
+
+        TestResult result = singleFlightService.execute(key, TestResult.class, () -> {
+            executions.incrementAndGet();
+            return new TestResult("fallback-after-read-error");
+        });
+
+        assertEquals("fallback-after-read-error", result.value());
+        assertEquals(1, executions.get());
+    }
+
     private record TestResult(String value) {}
 }
 
