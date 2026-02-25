@@ -15,6 +15,7 @@ import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Component;
+import org.springframework.web.client.HttpStatusCodeException;
 import org.springframework.web.client.RestTemplate;
 
 import java.util.UUID;
@@ -42,24 +43,36 @@ public class QueryServiceClient {
 		String url = String.format("%s%s/%s", queryServiceUrl, SUMMARY_ENDPOINT, articleId);
 		
 		HttpEntity<ArticleDTO> request = new HttpEntity<>(article);
-		ResponseEntity<SummaryDTO> response = queryServiceRestTemplate.exchange(
-			url,
-			HttpMethod.POST,
-			request,
-			SummaryDTO.class
-		);
-		
-		if (response.getStatusCode() == HttpStatus.OK && response.getBody() != null) {
+		try {
+			ResponseEntity<SummaryDTO> response = queryServiceRestTemplate.exchange(
+				url,
+				HttpMethod.POST,
+				request,
+				SummaryDTO.class
+			);
+			
+			if (response.getBody() == null) {
+				log.warn("Query-service returned null response body with status: {}", response.getStatusCode());
+				throw new ExternalApiException("Query-service returned empty response");
+			}
+			
+			// Keep a defensive branch for mocked/non-default RestTemplate error handlers.
+			if (response.getStatusCode() != HttpStatus.OK) {
+				log.warn("Unexpected response from query-service: {}", response.getStatusCode());
+				throw new ExternalApiException(String.format("Failed to get summary from query-service: status %s", response.getStatusCode()));
+			}
+			
 			return response.getBody();
+		} catch (HttpStatusCodeException e) {
+			if (e.getStatusCode().is4xxClientError()) {
+				log.warn("Query-service client error. status={}, articleId={}", e.getStatusCode(), articleId);
+				throw new ExternalApiException(
+					String.format("Query-service request failed with client error: status %s", e.getStatusCode()),
+					e
+				);
+			}
+			throw e;
 		}
-		
-		if (response.getBody() == null) {
-			log.warn("Query-service returned null response body with status: {}", response.getStatusCode());
-			throw new ExternalApiException("Query-service returned empty response");
-		}
-		
-		log.warn("Unexpected response from query-service: {}", response.getStatusCode());
-		throw new ExternalApiException(String.format("Failed to get summary from query-service: status %s", response.getStatusCode()));
 	}
 	
 	/**

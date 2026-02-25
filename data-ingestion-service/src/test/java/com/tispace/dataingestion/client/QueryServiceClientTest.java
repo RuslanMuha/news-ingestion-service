@@ -119,7 +119,7 @@ class QueryServiceClientTest {
 	}
 	
 	@Test
-	void testGetArticleSummary_HttpClientErrorException_ThrowsException() {
+	void testGetArticleSummary_HttpClientErrorException_MapsToExternalApiException() {
 		HttpClientErrorException httpException = new HttpClientErrorException(HttpStatus.NOT_FOUND, "Not Found");
 		
 		when(restTemplate.exchange(
@@ -129,10 +129,10 @@ class QueryServiceClientTest {
 			eq(SummaryDTO.class)
 		)).thenThrow(httpException);
 		
-		// In unit tests without Resilience4j configuration, exceptions are thrown directly
-		// Circuit breaker/retry/rate limiter annotations don't work without proper setup
-		assertThrows(HttpClientErrorException.class, 
+		ExternalApiException exception = assertThrows(ExternalApiException.class, 
 			() -> queryServiceClient.getArticleSummary(ARTICLE_ID, mockArticleDTO));
+		assertTrue(exception.getMessage().contains("client error"));
+		assertSame(httpException, exception.getCause());
 	}
 	
 	@Test
