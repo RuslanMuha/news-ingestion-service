@@ -27,10 +27,16 @@ FROM eclipse-temurin:21-jre-alpine
 WORKDIR /app
 
 # Install curl for health checks
-RUN apk add --no-cache curl
+RUN apk add --no-cache curl \
+    && addgroup -S appgroup \
+    && adduser -S appuser -G appgroup
 
 # Copy the built JAR from build stage
 COPY --from=build /app/query-service/target/query-service-*.jar app.jar
+
+RUN chown appuser:appgroup /app/app.jar
+
+USER appuser
 
 # Expose port
 EXPOSE 8082
