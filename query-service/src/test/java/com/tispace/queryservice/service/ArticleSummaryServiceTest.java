@@ -211,5 +211,14 @@ class ArticleSummaryServiceTest {
 		verify(cacheService, never()).get(anyString(), any());
 		verify(summaryProvider, never()).generateSummary(any(ArticleDTO.class));
 	}
+
+	@Test
+	void testGetSummary_NullArticleId_ThrowsIllegalArgumentException() throws Exception {
+		assertThrows(IllegalArgumentException.class,
+			() -> articleSummaryService.getSummary(null, mockArticleDTO));
+
+		verify(cacheService, never()).get(anyString(), any());
+		verify(summaryProvider, never()).generateSummary(any(ArticleDTO.class));
+	}
 }
 
