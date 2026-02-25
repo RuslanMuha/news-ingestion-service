@@ -31,8 +31,8 @@ public class DataIngestionService {
 	public void ingestData(String keyword, String category) {
 		log.info("Starting data ingestion with keyword: {}, category: {}", keyword, category);
 		
-		String searchKeyword = StringUtils.isNotEmpty(keyword) ? keyword : defaultKeyword;
-		String searchCategory = StringUtils.isNotEmpty(category) ? category : defaultCategory;
+		String searchKeyword = StringUtils.isNotBlank(keyword) ? keyword.trim() : defaultKeyword;
+		String searchCategory = StringUtils.isNotBlank(category) ? category.trim() : defaultCategory;
 
 		List<Article> articles = externalApiClient.fetchArticles(searchKeyword, searchCategory);
 		
@@ -47,7 +47,7 @@ public class DataIngestionService {
 		int skippedCount = 0;
 		
 		for (Article article : articles) {
-			if (article != null && StringUtils.isNotEmpty(article.getTitle())) {
+			if (article != null && StringUtils.isNotBlank(article.getTitle())) {
 				validArticles.add(article);
 			} else {
 				skippedCount++;

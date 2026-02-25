@@ -16,8 +16,8 @@ public class ArticleValidator {
 			return false;
 		}
 		
-		if (StringUtils.isEmpty(article.getTitle())) {
-			log.debug("Article title is null or empty");
+		if (StringUtils.isBlank(article.getTitle())) {
+			log.debug("Article title is null, empty or blank");
 			return false;
 		}
 		
@@ -29,8 +29,8 @@ public class ArticleValidator {
 			return "Article cannot be null";
 		}
 		
-		if (StringUtils.isEmpty(article.getTitle())) {
-			return "Article title cannot be null or empty";
+		if (StringUtils.isBlank(article.getTitle())) {
+			return "Article title cannot be null, empty or blank";
 		}
 		
 		return null;

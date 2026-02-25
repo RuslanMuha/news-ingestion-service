@@ -12,6 +12,7 @@ import org.springframework.test.util.ReflectionTestUtils;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.anyList;
@@ -113,15 +114,14 @@ class DataIngestionServiceTest {
 	}
 	
 	@Test
-	void testIngestData_WithWhitespaceKeyword_UsesWhitespaceAsKeyword() {
-		// Note: StringUtils.isNotEmpty("   ") returns true, so whitespace is used as-is
+	void testIngestData_WithWhitespaceOnlyKeyword_UsesDefault() {
+		// Whitespace-only keyword is treated as absent and defaulted
 		when(externalApiClient.fetchArticles(anyString(), anyString())).thenReturn(mockArticles);
 		when(articlePersistenceService.saveArticles(anyList())).thenReturn(1);
 		
 		dataIngestionService.ingestData("   ", "technology");
 		
-		// The implementation uses isNotEmpty, not isNotBlank, so whitespace is kept
-		verify(externalApiClient, times(1)).fetchArticles("   ", "technology");
+		verify(externalApiClient, times(1)).fetchArticles("technology", "technology");
 		verify(articlePersistenceService, times(1)).saveArticles(argThat(list -> 
 			list.size() == 1 && 
 			list.get(0).getTitle().equals("Test Article")));
@@ -142,8 +142,8 @@ class DataIngestionServiceTest {
 		verify(externalApiClient, times(1)).fetchArticles("technology", "technology");
 		verify(articlePersistenceService, times(1)).saveArticles(argThat(list -> 
 			list.size() == 2 && 
-			list.stream().noneMatch(article -> article == null) &&
-			list.stream().allMatch(article -> article.getTitle() != null && !article.getTitle().isEmpty())));
+			list.stream().noneMatch(Objects::isNull) &&
+			list.stream().allMatch(article -> article.getTitle() != null && !article.getTitle().trim().isEmpty())));
 	}
 	
 	@Test
@@ -161,6 +161,11 @@ class DataIngestionServiceTest {
 		articleWithEmptyTitle.setDescription("Description");
 		articlesWithInvalid.add(articleWithEmptyTitle);
 		
+		Article articleWithWhitespaceOnlyTitle = new Article();
+		articleWithWhitespaceOnlyTitle.setTitle("   ");
+		articleWithWhitespaceOnlyTitle.setDescription("Description");
+		articlesWithInvalid.add(articleWithWhitespaceOnlyTitle);
+		
 		when(externalApiClient.fetchArticles(anyString(), anyString())).thenReturn(articlesWithInvalid);
 		when(articlePersistenceService.saveArticles(anyList())).thenReturn(1);
 		
@@ -170,7 +175,7 @@ class DataIngestionServiceTest {
 		verify(articlePersistenceService, times(1)).saveArticles(argThat(list -> 
 			list.size() == 1 && 
 			list.get(0).getTitle().equals("Test Article") &&
-			list.get(0).getTitle() != null && !list.get(0).getTitle().isEmpty()));
+			list.get(0).getTitle() != null && !list.getFirst().getTitle().trim().isEmpty()));
 	}
 	
 	@Test

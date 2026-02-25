@@ -17,8 +17,8 @@ public interface NewsApiArticleMapper {
 	Article toArticle(NewsApiAdapter.ArticleResponse articleResponse);
 	
 	default void updateCategory(@MappingTarget Article article, String category) {
-		if (org.apache.commons.lang3.StringUtils.isNotEmpty(category)) {
-			article.setCategory(category);
+		if (org.apache.commons.lang3.StringUtils.isNotBlank(category)) {
+			article.setCategory(category.trim());
 		} else {
 			article.setCategory(com.tispace.dataingestion.constants.NewsApiConstants.DEFAULT_CATEGORY);
 		}

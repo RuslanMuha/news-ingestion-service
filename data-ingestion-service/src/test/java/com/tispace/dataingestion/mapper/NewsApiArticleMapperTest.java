@@ -92,16 +92,14 @@ class NewsApiArticleMapperTest {
 	}
 	
 	@Test
-	void testUpdateCategory_WithWhitespaceCategory_UsesProvidedValue() {
-		// Note: StringUtils.isNotEmpty("   ") returns true, so whitespace is treated as valid category
-		// This is the actual behavior of the implementation
+	void testUpdateCategory_WithWhitespaceOnlyCategory_UsesDefault() {
+		// Whitespace-only category is treated as absent and default category is used
 		Article article = new Article();
 		article.setTitle("Test Article");
 		
 		mapper.updateCategory(article, "   ");
 		
-		// The implementation uses isNotEmpty, not isNotBlank, so whitespace is kept
-		assertEquals("   ", article.getCategory());
+		assertEquals(NewsApiConstants.DEFAULT_CATEGORY, article.getCategory());
 	}
 	
 	@Test
