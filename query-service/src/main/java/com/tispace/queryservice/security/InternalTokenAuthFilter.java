@@ -48,14 +48,6 @@ public class InternalTokenAuthFilter extends OncePerRequestFilter {
         }
 
 
-        if (!StringUtils.hasText(properties.getToken())) {
-            log.error("Internal token is NOT configured! Internal API is blocked.");
-            response.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
-            response.setContentType("application/json");
-            response.getWriter().write("{\"error\":\"Internal API token is not configured\"}");
-            return;
-        }
-
         String providedToken = request.getHeader(properties.getHeader());
 
         if (!StringUtils.hasText(providedToken)) {

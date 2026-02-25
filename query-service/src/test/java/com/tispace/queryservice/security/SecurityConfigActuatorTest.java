@@ -19,7 +19,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  */
 @SpringBootTest
 @AutoConfigureMockMvc
-@TestPropertySource(properties = "INTERNAL_API_TOKEN=test-token")
+@TestPropertySource(properties = "security.internal.token=test-token")
 class SecurityConfigActuatorTest {
 
     @MockBean

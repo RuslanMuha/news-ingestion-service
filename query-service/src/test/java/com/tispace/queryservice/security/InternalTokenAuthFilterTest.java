@@ -56,32 +56,10 @@ class InternalTokenAuthFilterTest {
     }
 
     @Test
-    void shouldReturn500_whenInternalTokenIsNotConfigured() throws ServletException, IOException {
-        var filter = new InternalTokenAuthFilter(properties);
-        when(request.getRequestURI()).thenReturn("/internal/test");
-
-        when(properties.getToken()).thenReturn("   ");
-
-        var sw = new StringWriter();
-        doReturn(new PrintWriter(sw, true)).when(response).getWriter();
-
-        filter.doFilterInternal(request, response, filterChain);
-
-        verify(filterChain, never()).doFilter(any(), any());
-
-        verify(response).setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
-        verify(response).setContentType("application/json");
-        assertEquals("{\"error\":\"Internal API token is not configured\"}", sw.toString());
-
-        assertNull(SecurityContextHolder.getContext().getAuthentication());
-    }
-
-    @Test
     void shouldReturn401_whenMissingAuthHeader() throws ServletException, IOException {
         var filter = new InternalTokenAuthFilter(properties);
         when(request.getRequestURI()).thenReturn("/internal/reports");
 
-        when(properties.getToken()).thenReturn("EXPECTED_TOKEN");
         when(properties.getHeader()).thenReturn("X-Internal-Token");
 
         when(request.getHeader("X-Internal-Token")).thenReturn(null);
