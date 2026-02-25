@@ -82,8 +82,8 @@ resilience4j:
 server:
   port: 8082
   error:
-    include-message: always
-    include-binding-errors: always
+    include-message: never
+    include-binding-errors: never
 
 management:
   tracing:

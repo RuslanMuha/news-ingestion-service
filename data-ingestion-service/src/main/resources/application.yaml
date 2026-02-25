@@ -58,8 +58,8 @@ scheduler:
 server:
   port: 8081
   error:
-    include-message: always
-    include-binding-errors: always
+    include-message: never
+    include-binding-errors: never
 
 management:
   tracing:
