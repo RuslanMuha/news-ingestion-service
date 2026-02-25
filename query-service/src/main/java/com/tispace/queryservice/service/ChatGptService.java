@@ -49,7 +49,7 @@ public class ChatGptService {
 			return generateMockSummary(article);
 		}
 		
-		log.info("Generating summary for article id: {}", article.getId());
+		log.debug("Generating summary for article id: {}", article.getId());
 		
 		String prompt = PromptBuilder.buildSummaryPrompt(article);
 		if (StringUtils.isBlank(prompt)) {
@@ -101,7 +101,7 @@ public class ChatGptService {
 			throw new ExternalApiException("OpenAI API returned empty summary content");
 		}
 		
-		log.info("Successfully generated summary for article id: {}", articleId);
+		log.debug("Successfully generated summary for article id: {}", articleId);
 		return content.trim();
 	}
 	
