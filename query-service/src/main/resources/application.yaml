@@ -113,7 +113,7 @@ logging:
     console: "%d{yyyy-MM-dd HH:mm:ss.SSS} %-5level [%thread] %logger{36} trace=%X{traceId} span=%X{spanId} - %msg%n"
   level:
     root: INFO
-    com.tispace: DEBUG
+    com.tispace: ${APP_LOG_LEVEL:INFO}
     org.springframework.web: INFO
     org.hibernate: WARN
 

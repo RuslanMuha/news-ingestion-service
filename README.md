@@ -85,6 +85,7 @@ curl http://localhost:8081/api/articles/550e8400-e29b-41d4-a716-446655440000/sum
 - `OPENAI_MODEL` - Model name (default: `gpt-4o-mini` Docker, `gpt-3.5-turbo` local)
 - `OPENAI_TIMEOUT` - Timeout seconds (default: `60`)
 - `TRACING_SAMPLING_PROBABILITY` - Trace sampling probability (default: `0.1`)
+- `APP_LOG_LEVEL` - Application package log level for `com.tispace` (default: `INFO`)
 - `DB_HOST`, `DB_PORT`, `DB_NAME`, `DB_USER`, `DB_PASSWORD` - PostgreSQL config
 - `REDIS_HOST`, `REDIS_PORT` - Redis config
 - `QUERY_SERVICE_URL` - Query service URL
