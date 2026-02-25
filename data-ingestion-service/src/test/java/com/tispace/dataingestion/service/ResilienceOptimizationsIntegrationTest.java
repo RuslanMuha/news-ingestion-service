@@ -32,8 +32,8 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
 /**
- * Integration test for all resilience optimizations (P0 + P1).
- * Tests fail paths, load spikes, and edge cases across all optimizations.
+ * Combined unit-level resilience behavior checks (no Spring AOP proxies).
+ * Spring-context resilience annotations are validated in dedicated integration tests.
  */
 @ExtendWith(MockitoExtension.class)
 class ResilienceOptimizationsIntegrationTest {

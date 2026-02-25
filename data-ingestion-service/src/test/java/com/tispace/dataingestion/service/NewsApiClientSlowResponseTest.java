@@ -19,7 +19,8 @@ import static org.mockito.Mockito.*;
 
 /**
  * Tests for slow NewsAPI responses (P0.2).
- * Verifies that circuit breaker and bulkhead handle slow responses correctly.
+ * Unit-level behavior tests without Spring AOP proxies.
+ * Resilience4j annotations are validated in Spring context integration tests.
  */
 @ExtendWith(MockitoExtension.class)
 class NewsApiClientSlowResponseTest {
@@ -75,7 +76,7 @@ class NewsApiClientSlowResponseTest {
 	}
 	
 	@Test
-	void testFetchArticles_VerySlowResponse_MayTriggerCircuitBreaker() throws Exception {
+	void testFetchArticles_VerySlowResponse_WithoutSpringAop_CompletesSuccessfully() throws Exception {
 		String keyword = "technology";
 		String category = "technology";
 		
@@ -100,7 +101,7 @@ class NewsApiClientSlowResponseTest {
 	}
 	
 	@Test
-	void testFetchArticles_ConcurrentSlowRequests_BulkheadLimitsConcurrency() throws Exception {
+	void testFetchArticles_ConcurrentSlowRequests_WithoutSpringAop_ExecutesWithoutBulkhead() throws Exception {
 		String keyword = "technology";
 		String category = "technology";
 		int concurrentRequests = 15; // More than bulkhead max (10)
@@ -145,17 +146,15 @@ class NewsApiClientSlowResponseTest {
 		
 		assertTrue(completed, "All requests should complete within timeout");
 		
-		// Some requests may be rejected by bulkhead (max 10 concurrent)
-		// But fallback should return empty list, not throw exception
+		// In this unit test (no Spring AOP), bulkhead is not enforced.
 		assertTrue(exceptions.isEmpty() || exceptions.size() < concurrentRequests,
-			"Most requests should succeed or use fallback, exceptions: " + exceptions.size());
+			"Concurrent calls should complete without systemic failures, exceptions: " + exceptions.size());
 		
-		// Verify core was called (some calls may be blocked by bulkhead)
-		verify(core, atMost(concurrentRequests)).fetchArticles(keyword, category);
+		verify(core, times(concurrentRequests)).fetchArticles(keyword, category);
 	}
 	
 	@Test
-	void testFetchArticles_SlowResponseWithRetry_RetriesOnTimeout() throws Exception {
+	void testFetchArticles_SlowResponseWithRetry_WithoutSpringAop_PropagatesFirstException() throws Exception {
 		String keyword = "technology";
 		String category = "technology";
 		

@@ -143,7 +143,7 @@ class QueryServiceClientTimeoutTest {
 	}
 	
 	@Test
-	void testGetArticleSummary_NetworkTimeout_ThrowsException() {
+	void testGetArticleSummary_NetworkTimeout_WithoutSpringAop_PropagatesException() {
 		// Simulate network timeout (RestClientException)
 		// Note: Resilience4j fallback only works in Spring context
 		// In unit tests without Spring, exception is thrown directly
@@ -154,14 +154,14 @@ class QueryServiceClientTimeoutTest {
 			eq(SummaryDTO.class)
 		)).thenThrow(new RestClientException("Connection timeout"));
 		
-		// Should throw exception (fallback requires Spring context)
+		// In this unit test (no Spring AOP proxy), exception propagates directly.
 		assertThrows(Exception.class, () -> {
 			queryServiceClient.getArticleSummary(ARTICLE_ID, mockArticleDTO);
 		});
 	}
 	
 	@Test
-	void testGetArticleSummary_ServerError_ThrowsException() {
+	void testGetArticleSummary_ServerError_WithoutSpringAop_PropagatesException() {
 		// Simulate server error
 		// Note: Resilience4j retry/fallback only works in Spring context
 		// In unit tests without Spring, exception is thrown directly
@@ -173,7 +173,7 @@ class QueryServiceClientTimeoutTest {
 		)).thenThrow(new org.springframework.web.client.HttpServerErrorException(
 			HttpStatus.INTERNAL_SERVER_ERROR, "Server error"));
 		
-		// Should throw exception (retry/fallback requires Spring context)
+		// In this unit test (no Spring AOP proxy), exception propagates directly.
 		assertThrows(Exception.class, () -> {
 			queryServiceClient.getArticleSummary(ARTICLE_ID, mockArticleDTO);
 		});
