@@ -3,6 +3,7 @@ package com.tispace.dataingestion.client;
 import com.tispace.common.contract.ArticleDTO;
 import com.tispace.common.contract.SummaryDTO;
 import com.tispace.common.exception.ExternalApiException;
+import com.tispace.common.exception.RateLimitExceededException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -18,6 +19,8 @@ import org.springframework.web.client.HttpClientErrorException;
 import org.springframework.web.client.HttpServerErrorException;
 import org.springframework.web.client.ResourceAccessException;
 import org.springframework.web.client.RestTemplate;
+import io.github.resilience4j.ratelimiter.RequestNotPermitted;
+import io.github.resilience4j.ratelimiter.RateLimiter;
 
 import java.time.LocalDateTime;
 import java.util.UUID;
@@ -184,10 +187,9 @@ class QueryServiceClientTest {
 	}
 	
 	@Test
-	void testGetArticleSummary_RequestNotPermitted_CallsFallback() {
-		// RequestNotPermitted doesn't have a public constructor, so we'll test the fallback behavior
-		// by simulating the scenario where rate limiter would trigger
-		RuntimeException rateLimitException = new RuntimeException("Rate limit exceeded");
+	void testGetArticleSummary_RequestNotPermitted_WithoutSpringAop_PropagatesException() {
+		RateLimiter rateLimiter = RateLimiter.ofDefaults("queryServiceTestLimiter");
+		RequestNotPermitted rateLimitException = RequestNotPermitted.createRequestNotPermitted(rateLimiter);
 		
 		when(restTemplate.exchange(
 			anyString(),
@@ -196,9 +198,30 @@ class QueryServiceClientTest {
 			eq(SummaryDTO.class)
 		)).thenThrow(rateLimitException);
 		
-		// In unit tests without Resilience4j configuration, exceptions are thrown directly
-		assertThrows(RuntimeException.class, 
-			() -> queryServiceClient.getArticleSummary(ARTICLE_ID, mockArticleDTO));
+		RequestNotPermitted ex = assertThrows(
+			RequestNotPermitted.class,
+			() -> queryServiceClient.getArticleSummary(ARTICLE_ID, mockArticleDTO)
+		);
+		assertSame(rateLimitException, ex);
+	}
+
+	@Test
+	void testGetArticleSummaryFallback_RequestNotPermitted_MapsToClientRateLimitException() {
+		RateLimiter rateLimiter = RateLimiter.ofDefaults("queryServiceTestLimiter");
+		RequestNotPermitted rateLimitException = RequestNotPermitted.createRequestNotPermitted(rateLimiter);
+
+		RateLimitExceededException ex = assertThrows(
+			RateLimitExceededException.class,
+			() -> ReflectionTestUtils.invokeMethod(
+				queryServiceClient,
+				"getArticleSummaryFallback",
+				ARTICLE_ID,
+				mockArticleDTO,
+				rateLimitException
+			)
+		);
+		assertTrue(ex.getMessage().contains("Client-side rate limit exceeded"));
+		assertSame(rateLimitException, ex.getCause());
 	}
 	
 	@Test

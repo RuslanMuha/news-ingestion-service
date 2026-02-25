@@ -3,6 +3,7 @@ package com.tispace.dataingestion.client;
 import com.tispace.common.contract.ArticleDTO;
 import com.tispace.common.contract.SummaryDTO;
 import com.tispace.common.exception.ExternalApiException;
+import com.tispace.common.exception.RateLimitExceededException;
 import io.github.resilience4j.bulkhead.annotation.Bulkhead;
 import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
 import io.github.resilience4j.ratelimiter.RequestNotPermitted;
@@ -83,7 +84,7 @@ public class QueryServiceClient {
 	private SummaryDTO getArticleSummaryFallback(UUID articleId, ArticleDTO article, Exception e) {
 		if (e instanceof RequestNotPermitted) {
 			log.warn("Rate limit exceeded for query-service. Article id: {}", articleId);
-			throw new ExternalApiException("Rate limit exceeded. Please try again later.", e);
+			throw new RateLimitExceededException("Client-side rate limit exceeded. Please try again later.", e);
 		}
 		
 		String exceptionType = e != null ? e.getClass().getSimpleName() : "Unknown";
