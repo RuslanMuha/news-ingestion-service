@@ -32,6 +32,7 @@ public class NewsApiClientCore {
     private final ObjectMapper objectMapper;
     private final NewsApiArticleMapper mapper;
     private final ArticleValidator validator;
+    private final NewsApiClientMetrics metrics;
     private final String newsApiUrl;
     private final String apiKey;
 
@@ -40,6 +41,7 @@ public class NewsApiClientCore {
             ObjectMapper objectMapper,
             NewsApiArticleMapper mapper,
             ArticleValidator validator,
+            NewsApiClientMetrics metrics,
             @Value("${external-api.news-api.url:https://newsapi.org/v2/everything}") String newsApiUrl,
             @Value("${external-api.news-api.api-key:}") String apiKey
     ) {
@@ -47,6 +49,7 @@ public class NewsApiClientCore {
         this.objectMapper = objectMapper;
         this.mapper = mapper;
         this.validator = validator;
+        this.metrics = metrics;
         this.newsApiUrl = newsApiUrl;
         this.apiKey = apiKey;
 
@@ -114,16 +117,37 @@ public class NewsApiClientCore {
 
             try {
                 Article article = mapper.toArticle(r);
-                if (article == null) continue;
+                if (article == null) {
+                    logDropped(r.getTitle(), "mapping returned null");
+                    metrics.onArticleDropped();
+                    continue;
+                }
 
                 mapper.updateCategory(article, category);
 
-                if (!validator.isValid(article)) continue;
+                if (!validator.isValid(article)) {
+                    logDropped(article.getTitle(), "validation failed");
+                    metrics.onArticleDropped();
+                    continue;
+                }
 
                 result.add(article);
-            } catch (Exception ignored) {
+            } catch (Exception e) {
+                String title = null;
+                try {
+                    title = r.getTitle();
+                } catch (Exception ignored) { /* avoid double failure */ }
+                logDropped(title, e.getMessage());
+                metrics.onArticleDropped();
             }
         }
         return result;
+    }
+
+    private void logDropped(String title, String reason) {
+        String safeTitle = title != null && !title.isBlank() ? title : "(no title)";
+        String safeReason = reason != null && !reason.isBlank() ? reason : "unknown";
+        if (safeReason.length() > 200) safeReason = safeReason.substring(0, 200) + "...";
+        log.warn("Article dropped during mapping/validation: title={}, reason={}", safeTitle, safeReason);
     }
 }

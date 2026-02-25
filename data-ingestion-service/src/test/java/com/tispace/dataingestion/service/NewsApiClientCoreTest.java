@@ -43,6 +43,9 @@ class NewsApiClientCoreTest {
 	@Mock
 	private ArticleValidator validator;
 
+	@Mock
+	private NewsApiClientMetrics metrics;
+
 	private NewsApiClientCore core;
 
 	private static final String NEWS_API_URL = "https://newsapi.org/v2/everything";
@@ -55,6 +58,7 @@ class NewsApiClientCoreTest {
 			objectMapper,
 			mapper,
 			validator,
+			metrics,
 			NEWS_API_URL,
 			API_KEY
 		);
@@ -68,6 +72,7 @@ class NewsApiClientCoreTest {
 			objectMapper,
 			mapper,
 			validator,
+			metrics,
 			NEWS_API_URL,
 			""
 		));
@@ -80,6 +85,7 @@ class NewsApiClientCoreTest {
 			objectMapper,
 			mapper,
 			validator,
+			metrics,
 			NEWS_API_URL,
 			null
 		));

@@ -13,6 +13,7 @@ public class NewsApiClientMetrics {
     private final Counter requests;
     private final Counter errors;
     private final Counter fallback;
+    private final Counter articlesDropped;
     private final Timer latency;
 
     public NewsApiClientMetrics(MeterRegistry registry) {
@@ -31,6 +32,11 @@ public class NewsApiClientMetrics {
                 .tag("client", "newsapi")
                 .register(registry);
 
+        this.articlesDropped = Counter.builder("newsapi_articles_dropped_total")
+                .description("Articles dropped during mapping or validation")
+                .tag("client", "newsapi")
+                .register(registry);
+
         this.latency = Timer.builder("external_api_latency_seconds")
                 .description("External API latency")
                 .tag("client", "newsapi")
@@ -40,6 +46,7 @@ public class NewsApiClientMetrics {
     public void onRequest() { requests.increment(); }
     public void onError() { errors.increment(); }
     public void onFallback() { fallback.increment(); }
+    public void onArticleDropped() { articlesDropped.increment(); }
 
     public <T> T recordLatency(Callable<T> callable) throws Exception {
         return latency.recordCallable(callable);
