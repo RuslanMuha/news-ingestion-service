@@ -12,8 +12,10 @@ import java.sql.Statement;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.never;
@@ -67,6 +69,22 @@ class ArticleBatchRepositoryTest {
         assertEquals(0, repository.batchInsertIgnoreDuplicates(List.of()));
         assertEquals(0, repository.batchInsertIgnoreDuplicates(null));
         verify(jdbcTemplate, never()).batchUpdate(any(String.class), any(BatchPreparedStatementSetter.class));
+    }
+
+    @Test
+    void batchInsertIgnoreDuplicates_assignsIdInRepositoryWhenMissing() {
+        ArticleBatchRepository repository = new ArticleBatchRepository(jdbcTemplate);
+        List<Article> articles = buildArticles(2);
+        UUID preSetId = UUID.fromString("01234567-89ab-7def-0123-456789abcdef");
+        articles.get(1).setId(preSetId);
+
+        when(jdbcTemplate.batchUpdate(any(String.class), any(BatchPreparedStatementSetter.class)))
+                .thenReturn(new int[]{1, 1});
+
+        repository.batchInsertIgnoreDuplicates(articles);
+
+        assertNotNull(articles.get(0).getId());
+        assertEquals(preSetId, articles.get(1).getId());
     }
 
     private List<Article> buildArticles(int count) {

@@ -1,6 +1,5 @@
 package com.tispace.dataingestion.domain.entity;
 
-import com.github.f4b6a3.uuid.UuidCreator;
 import jakarta.persistence.*;
 import lombok.*;
 
@@ -26,13 +25,6 @@ public class Article extends BaseEntity {
 	@Column(name = "id", columnDefinition = "UUID", nullable = false, updatable = false)
 	private UUID id;
 	
-	@PrePersist
-	protected void onCreate() {
-		if (id == null) {
-			id = UuidCreator.getTimeOrderedEpoch();
-		}
-	}
-
 	@Column(name = "title", nullable = false, columnDefinition = "TEXT")
 	private String title;
 	
