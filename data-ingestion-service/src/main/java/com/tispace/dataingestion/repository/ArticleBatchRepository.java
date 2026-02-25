@@ -55,7 +55,7 @@ public class ArticleBatchRepository {
                     if (a.getPublishedAt() != null) {
                         ps.setTimestamp(5, Timestamp.valueOf(a.getPublishedAt()));
                     } else {
-                        ps.setTimestamp(5, null);
+                        ps.setNull(5, Types.TIMESTAMP);
                     }
 
                     ps.setString(6, a.getCategory());
